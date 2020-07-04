@@ -17,6 +17,7 @@ _deps
 *.pkl
 *.npz
 *.npy
+*.obj
 
 # Prerequisites
 *.d

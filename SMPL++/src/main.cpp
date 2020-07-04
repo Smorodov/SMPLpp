@@ -39,7 +39,7 @@ using clk = std::chrono::system_clock;
 
 int main(int argc, char const* argv[])
 {
-	std::string modelPath = "MANO_left.npz";
+	std::string modelPath = "female_model.npz";
 	torch::Device cuda(torch::kCPU);
 	cuda.set_index(0);
 
@@ -70,6 +70,7 @@ int main(int argc, char const* argv[])
 
 	beta = 0.3 * torch::rand({ BATCH_SIZE, SHAPE_BASIS_DIM });
 
+	float pose_rand_amplitude = 1;
 	while (k != 27)
 	{
 		auto end = clk::now();
@@ -78,11 +79,19 @@ int main(int argc, char const* argv[])
  << "Time duration to load SMPL: " << (double)duration.count() / 1000 << " s" << std::endl;
 
 
-		theta = 0.0 * torch::rand({ BATCH_SIZE, JOINT_NUM, 3 })- 0.0 * torch::ones({ BATCH_SIZE, JOINT_NUM, 3 });
+		theta = pose_rand_amplitude * torch::rand({ BATCH_SIZE, JOINT_NUM, 3 })- pose_rand_amplitude/2 * torch::ones({ BATCH_SIZE, JOINT_NUM, 3 });
 				
 		theta.data<float>()[0] = 0;
 		theta.data<float>()[1] = 0;
 		theta.data<float>()[2] = 0;
+
+		for (int i = 0; i < JOINT_NUM; ++i)
+		{
+			//theta.data<float>()[i*3+0] = 0; // rx
+			theta.data<float>()[i*3+1] = 0; // ry
+			theta.data<float>()[i*3+2] = 0; // rz
+		}
+
 		try
 		{
 			const int64_t LOOPS = 1;
@@ -96,7 +105,7 @@ int main(int argc, char const* argv[])
 			std::cout << "Time duration to run SMPL: " << (double)duration.count() / LOOPS << " ms" << std::endl;
 
 			vertices = SINGLE_SMPL::get()->getVertex();
-			SINGLE_SMPL::get()->setVertPath("vertices.obj");
+			SINGLE_SMPL::get()->setVertPath("model.obj");
 			SINGLE_SMPL::get()->out(0);
 		}
 		catch (std::exception& e)
@@ -134,20 +143,22 @@ int main(int argc, char const* argv[])
 		glm::mat4 Projection = glm::mat4(1.0f);
 		glm::mat4 ModelView = glm::mat4(1.0f);
 
-
+		float scl = 1;
+		float tx = 0;
+		float ty = 0.35;
+		float tz = 0;
+		float rx = 0;
+		float ry = 0;
+		float rz = 0;
 
 		ModelView = glm::translate(ModelView, glm::vec3(bg.cols / 2, bg.rows / 2, 0));
-		// ModelView = glm::rotate(ModelView, float(90.0f*3.14/180), glm::vec3(1, 0, 0));
-		// ModelView = glm::rotate(ModelView, float(0.0f), glm::vec3(0, 1, 0));
-		// ModelView = glm::rotate(ModelView, float(0.0f), glm::vec3(0, 0, 1));
+		ModelView = glm::rotate(ModelView, float(rx*CV_PI/180.0), glm::vec3(1, 0, 0));
+		ModelView = glm::rotate(ModelView, float(ry), glm::vec3(0, 1, 0));
+		ModelView = glm::rotate(ModelView, float(rz), glm::vec3(0, 0, 1));
 
-		float scl = 6;
-		float tx = 0;
-		float ty = 0;
-		float tz = 0;
 		ModelView = glm::scale(ModelView, glm::vec3(bg.cols / 2*scl, bg.cols / 2 * scl, bg.cols / 2 * scl));
 		
-		//ModelView = glm::translate(ModelView, glm::vec3(0.0, 0.35, 0));
+		ModelView = glm::translate(ModelView, glm::vec3(tx, ty, tz));
 		
 		renderer->setModelViewMatrix(ModelView);
 		renderer->setProjectionMatrix(Projection);
@@ -223,7 +234,7 @@ int main(int argc, char const* argv[])
 	}
 	SINGLE_SMPL::destroy();
 	delete renderer;
-
+	cv::imwrite("result.jpg", face);
     return 0;
 }
 
