@@ -178,9 +178,8 @@ private: // PRIVATE ATTRIBUTES
 protected: // PROTECTED ATTRIBUTES
 
 public: // PUBLIC ATTRIBUTES
-
+    
 private: // PRIVATE METHODS
-
     void linearCombine() noexcept(false);
     void jointRegress() noexcept(false);
 

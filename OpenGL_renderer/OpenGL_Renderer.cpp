@@ -19,7 +19,7 @@ GLuint OpenGL_Renderer::pbo_id;
 size_t OpenGL_Renderer::pbo_size;
 
 GLuint OpenGL_Renderer::BG_textureID;
-GLuint OpenGL_Renderer::Face_textureID;
+//GLuint OpenGL_Renderer::Face_textureID;
 
 int OpenGL_Renderer::width;
 int OpenGL_Renderer::height;
@@ -461,13 +461,27 @@ void OpenGL_Renderer::Render(GLModel* mdl)
 	InitializeVertexBuffer(model);
 
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, Face_textureID);
+	//glBindTexture(GL_TEXTURE_2D, Face_textureID);
 
 
 	
 	glm::mat4 MVP = Viewport * Projection * ModelView;
 	glm::mat4 MVP_normals = glm::transpose(glm::inverse(MVP));
-	glm::vec4 col= glm::vec4(241 / 255.0, 194 / 255.0, 125 / 255.0, 0.5);
+	glm::vec4 col= glm::vec4(241 / 255.0, 194 / 255.0, 125 / 255.0, 0.8);
+
+	glEnable(GL_DEPTH_TEST);
+	//glDepthMask(GL_FALSE);
+	//glDepthFunc(GL_LEQUAL);
+	glDisable(GL_CULL_FACE);
+	//glEnable(GL_MULTISAMPLE);
+
+	glEnable(GL_BLEND);
+
+	//glBlendFunci(0, GL_ONE, GL_ONE);
+	//glBlendEquationi(0, GL_FUNC_ADD);
+
+	glBlendFunci(1, GL_DST_COLOR, GL_ZERO);
+	glBlendEquationi(1, GL_FUNC_ADD);
 
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(1, -1);
@@ -486,6 +500,7 @@ void OpenGL_Renderer::Render(GLModel* mdl)
 	glDrawArrays(GL_TRIANGLES, 0, model->nverts());
 	shader.UnUse();
 
+
 	glLoadMatrixf(glm::value_ptr(MVP));
 	glDisable(GL_LIGHTING);
 	glColor3f(0, 0, 0);
@@ -496,11 +511,47 @@ void OpenGL_Renderer::Render(GLModel* mdl)
 	glDisableVertexAttribArray(1);
 	glDisableVertexAttribArray(2);
 	
-	glPointSize(3);
+	glDisable(GL_DEPTH_TEST);
+	glPointSize(4);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+	
+	glBegin(GL_POINTS);
+	for (int i = 0; i < mdl->jx.size(); ++i)
+	{
+		if (i == 17)
+		{
+			glColor3f(1, 0, 0);
+		}
+		else
+		{
+			glColor3f(1, 1, 1);
+		}
+		glVertex3f(mdl->jx[i], mdl->jy[i], mdl->jz[i]);
+	}
+	glEnd();
+
+	glColor3f(1, 1, 1);
+	glLineWidth(3);
+	glBegin(GL_LINES);
+	for (int i = 0; i < mdl->l1.size(); ++i)
+	{
+		if (mdl->l1[i] == -1 || mdl->l2[i] == -1)
+		{
+			continue;
+		}
+		glVertex3f(mdl->jx[mdl->l1[i]], mdl->jy[mdl->l1[i]], mdl->jz[mdl->l1[i]]);
+		glVertex3f(mdl->jx[mdl->l2[i]], mdl->jy[mdl->l2[i]], mdl->jz[mdl->l2[i]]);
+	}
+	glEnd();
+	glLineWidth(1);
+
+	//glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
+
+
 	SwapBuffers(wglGetCurrentDC());
 }
 
@@ -547,7 +598,7 @@ glm::mat4x3 OpenGL_Renderer::getAffineCameraMatrix(void)
 	return Projection * ModelView * vp;
 }
 
-void OpenGL_Renderer::projectPoints(std::vector<Eigen::Vector3f> vertCoords, std::vector<Eigen::Vector2f>& vertProjected)
+void OpenGL_Renderer::projectPoints(std::vector<glm::vec3> vertCoords, std::vector<glm::vec2>& vertProjected)
 {
 	vertProjected.clear();
 	// Transformation to screen space
@@ -557,7 +608,7 @@ void OpenGL_Renderer::projectPoints(std::vector<Eigen::Vector3f> vertCoords, std
 	for (int i = 0; i < sz; ++i)
 	{
 		p_screen = MVP*glm::vec4(vertCoords[i][0], vertCoords[i][1], vertCoords[i][2], 1.0);
-		vertProjected.push_back(Eigen::Vector2f(p_screen[0], p_screen[1]));
+		vertProjected.push_back(glm::vec2(p_screen[0], p_screen[1]));
 	}
 }
 

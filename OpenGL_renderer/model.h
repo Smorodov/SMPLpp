@@ -33,6 +33,13 @@ class GLModel
 		std::vector<glm::vec3> vertices;
 		std::vector<glm::vec3> vertex_normals;
 		std::vector<glm::vec2> tex_coords;
+
+		std::vector<float> jx;
+		std::vector<float> jy;
+		std::vector<float> jz;
+		std::vector<int64_t> l1;
+		std::vector<int64_t> l2;
+
 		Eigen::MatrixXf texture;
 };
 #endif //__MODEL_H__

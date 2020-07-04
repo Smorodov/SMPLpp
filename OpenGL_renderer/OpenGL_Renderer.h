@@ -17,7 +17,7 @@
 #include <glm/gtx/transform2.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "Eigen/Eigen"
+//#include "Eigen/Eigen"
 
 #define ARRAY_COUNT( array ) (sizeof( array ) / (sizeof( array[0] ) * (sizeof( array ) != sizeof(void*) || sizeof( array[0] ) <= sizeof(void*))))
 
@@ -41,7 +41,7 @@ public:
 	static GLuint pbo_id; // vertex array object handle
 	static size_t pbo_size;
 	static GLuint BG_textureID; // Backgroun image quad texture
-	static GLuint Face_textureID; // Face texture
+	//static GLuint Face_textureID; // Face texture
 
 	static int width;
 	static int height;
@@ -71,7 +71,7 @@ public:
 	// Affine camera matrix
 	static glm::mat4x3 getAffineCameraMatrix(void);
 	// Project points from model space to screen
-	static void projectPoints(std::vector<Eigen::Vector3f> vertCoords, std::vector<Eigen::Vector2f>& vertProjected);
+	static void projectPoints(std::vector<glm::vec3> vertCoords, std::vector<glm::vec2>& vertProjected);
 
 	static void InitializeVertexBuffer(GLModel* mdl);
 	static void setTexture(cv::Mat& image, GLuint& _textureID, int tex_size = 0);

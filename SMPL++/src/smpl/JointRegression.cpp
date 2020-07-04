@@ -461,6 +461,8 @@ torch::Tensor JointRegression::getRestShape() noexcept(false)
     return restShape;
 }
 
+
+
 /**getJoint
  * 
  * Brief
@@ -484,7 +486,8 @@ torch::Tensor JointRegression::getJoint() noexcept(false)
     torch::Tensor joints;
 
     if (m__joints.sizes() ==
-        torch::IntArrayRef({BATCH_SIZE, JOINT_NUM, 3})) {
+        torch::IntArrayRef({ BATCH_SIZE, JOINT_NUM, 3 }))
+    {
         joints = m__joints.clone().to(m__device);
     }
     else {
@@ -595,7 +598,7 @@ void JointRegression::jointRegress() noexcept(false)
             m__shapeBlendShape;// (N, 6890, 3)
         m__joints = torch::tensordot(blendShape, m__jointRegressor, 
             {1}, {1});// (N, 3, 24)
-        m__joints = torch::transpose(m__joints, 1, 2);// (N, 24, 3)
+        m__joints = torch::transpose(m__joints, 1, 2);// (N, 24, 3)        
     }
     else {
         throw smpl_error("JointRegression", 

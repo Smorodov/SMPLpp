@@ -22,6 +22,12 @@ void GLModel::addFace(int v1, int v2, int v3)
 
 void GLModel::clearMesh(void)
 {
+	jx.clear();
+	jy.clear();
+	jz.clear();
+	l1.clear();
+	l2.clear();
+	
 	vertices.clear();
 	tex_coords.clear();
 	vertex_normals.clear();

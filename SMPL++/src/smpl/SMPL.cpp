@@ -507,6 +507,7 @@ torch::Tensor SMPL::getVertex() noexcept(false)
     return vertices;
 }
 
+
 /**init
  * 
  * Brief
@@ -578,10 +579,19 @@ void SMPL::init() noexcept(false)
         m__jointRegressor = torch::from_blob(jointRegressor.data(),
             {joint_num, vertex_num}).to(m__device);// (24, 6890)
 
-        // transformer
         xt::xarray<int64_t> kinematicTree = npz_map["kinematic_tree"].cast<int64_t>();                
+        
+        for (int i = 0; i < kinematicTree.shape()[0]; ++i)
+        {
+            for (int j = 0; j < kinematicTree.shape()[1]; ++j)
+            {
+                kinematicTree(i, j) = int(kinematicTree(i, j));
+            }
+        }
+
         m__kinematicTree = torch::from_blob(kinematicTree.data(),
             { 2, joint_num },torch::kInt64).to(m__device);// (2, 24)                
+
         // skinner
         xt::xarray<float> weights = npz_map["weights"].cast<double>();
        // xt::from_json(m__model["weights"], weights);
@@ -807,7 +817,101 @@ void SMPL::getVandF(int64_t index,
     }
     else
     {
-        throw smpl_error("SMPL", "Cannot export the deformed mesh!");
+        throw smpl_error("SMPL", "Cannot export vertices and face indices!");
+    }
+
+    return;
+}
+// m__regressor
+void SMPL::getSkeleton(int64_t index,
+    std::vector<int64_t>& l1,
+    std::vector<int64_t>& l2,
+    
+    std::vector<float>& jx,
+    std::vector<float>& jy,
+    std::vector<float>& jz
+) noexcept(false)
+{
+    l1.clear();
+    l2.clear();
+    jx.clear();
+    jy.clear();
+    jz.clear();
+ 
+    m__regressor.regress();
+    torch::Tensor joints=m__regressor.getJoint().clone().to(m__device);// (N, NJoints, 3)
+    torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, m__device);// (N, NJoints, 1)
+    torch::Tensor homo = torch::cat({ joints, ones }, 2);// (N, NJoints, 4)
+    torch::Tensor transforms = m__skinner.m__transformation.clone().to(m__device);// (N, NJoints, 4, 4)
+    
+    std::cout << "homo:" << homo << std::endl;
+    torch::Tensor slice_ = TorchEx::indexing(homo, torch::IntList({ index}));// (joints_num, 3)
+    torch::Tensor tr_slice_ = TorchEx::indexing(transforms, torch::IntList({ index}));// (4, 4)
+    if (homo.sizes() == torch::IntArrayRef({ batch_size, joint_num, 4 }))
+    {
+        for (int64_t i = 0; i < joint_num; i++)
+        {
+            torch::Tensor slice1_ = TorchEx::indexing(slice_, torch::IntList({ i }));// (joints_num, 3)
+            xt::xarray<float> slice = xt::adapt((float*)slice1_.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ 1, 4 }));
+
+            torch::Tensor tr_slice1_ = TorchEx::indexing(tr_slice_, torch::IntList({ i }));// (4, 4)
+            tr_slice1_ = torch::transpose(tr_slice1_, 0, 1);
+            xt::xarray<float> tr_slice = xt::adapt((float*)tr_slice1_.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ 4, 4 }));
+            // std::cout << "=====tt_slice1_=====" << std::endl;
+            // std::cout << tr_slice1_ << std::endl;
+            // std::cout << "==========" << std::endl;
+            // std::cout << "=====slice_=====" << std::endl;
+            // std::cout << slice1_ << std::endl;                    
+            // std::cout << "==========" << std::endl;
+            torch::Tensor res = torch::matmul(slice1_, tr_slice1_);
+            xt::xarray<float> slice_res = xt::adapt((float*)res.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ (const size_t)1, 4 }));
+            jx.push_back(slice_res(0, 0));
+            jy.push_back(slice_res(0, 1));
+            jz.push_back(slice_res(0, 2));
+        }
+        xt::xarray<int64_t> kinematicTree = xt::adapt((int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr(), xt::xarray<int64_t>::shape_type({ 2,(const size_t)joint_num }));
+        for (int64_t i = 0; i < joint_num; i++)
+        {
+            l1.push_back(kinematicTree(0, i));
+            l2.push_back(kinematicTree(1, i));
+            COUT_VAR(l1[i])
+                COUT_VAR(l2[i])
+        }
+
+        // we deal with hand model 
+        if (face_index_num == 1538 && vertex_num == 778)
+        {
+            torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);
+            torch::Tensor vslice_ = TorchEx::indexing(vertices, torch::IntList({ index }));
+            xt::xarray<float> vslice = xt::adapt(
+                (float*)vslice_.to(torch::kCPU).data_ptr(),
+                xt::xarray<float>::shape_type({ (const size_t)vertex_num, 3 })
+            );
+
+            std::vector<int> tips = { 745,320,465,556,672 };
+            for (int i = 0; i < tips.size(); ++i)
+            {
+                jx.push_back(vslice(tips[i], 0));
+                jy.push_back(vslice(tips[i], 1));
+                jz.push_back(vslice(tips[i], 2));
+            }
+
+            l1.push_back(3);
+            l2.push_back(17);
+            l1.push_back(6);
+            l2.push_back(18);
+            l1.push_back(9);
+            l2.push_back(20);
+            l1.push_back(12);
+            l2.push_back(19);
+            l1.push_back(15);
+            l2.push_back(16);
+        }
+      
+    }
+    else
+    {
+        throw smpl_error("SMPL", "Cannot export skeleton!");
     }
 
     return;

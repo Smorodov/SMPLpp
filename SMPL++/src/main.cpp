@@ -33,18 +33,6 @@ float rescale(cv::Mat& image, int maxw, int maxh)
 	cv::resize(image, image, cv::Size(image.cols * scale, image.rows * scale));
 	return scale;
 }
-// ----------------------------------------------------------------------
-//
-// ----------------------------------------------------------------------
-void setTexture(Eigen::MatrixXf& image, GLuint& _textureID, int tex_size)
-{
-	glGenTextures(1, &_textureID);
-	glBindTexture(GL_TEXTURE_2D, _textureID);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, tex_size);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, tex_size, tex_size, 0, GL_RGB, GL_FLOAT, image.data());
-}
-
 
 using ms = std::chrono::milliseconds;
 using clk = std::chrono::system_clock;
@@ -67,7 +55,7 @@ int main(int argc, char const* argv[])
 	float scale = rescale(bg, max_width, max_height);
 	srand((unsigned int)time(0));
 	renderer = new OpenGL_Renderer(bg);
-	glDeleteTextures(1, &renderer->Face_textureID);
+	//glDeleteTextures(1, &renderer->Face_textureID);
 	int k = 0;
 
 
@@ -90,7 +78,7 @@ int main(int argc, char const* argv[])
  << "Time duration to load SMPL: " << (double)duration.count() / 1000 << " s" << std::endl;
 
 
-		theta = 0.6 * torch::rand({ BATCH_SIZE, JOINT_NUM, 3 })- 0.3 * torch::ones({ BATCH_SIZE, JOINT_NUM, 3 });
+		theta = 0.0 * torch::rand({ BATCH_SIZE, JOINT_NUM, 3 })- 0.0 * torch::ones({ BATCH_SIZE, JOINT_NUM, 3 });
 				
 		theta.data<float>()[0] = 0;
 		theta.data<float>()[1] = 0;
@@ -108,6 +96,8 @@ int main(int argc, char const* argv[])
 			std::cout << "Time duration to run SMPL: " << (double)duration.count() / LOOPS << " ms" << std::endl;
 
 			vertices = SINGLE_SMPL::get()->getVertex();
+			SINGLE_SMPL::get()->setVertPath("vertices.obj");
+			SINGLE_SMPL::get()->out(0);
 		}
 		catch (std::exception& e)
 		{
@@ -123,6 +113,19 @@ int main(int argc, char const* argv[])
 		SINGLE_SMPL::get()->getVandF(0, vx, vy, vz, f1, f2, f3);
 
 		
+		std::vector<float> jx;
+		std::vector<float> jy;
+		std::vector<float> jz;
+
+		std::vector<int64_t> l1;
+		std::vector<int64_t> l2;
+
+		SINGLE_SMPL::get()->getSkeleton(0,
+			l1,
+			l2,
+			jx,
+			jy,
+			jz);
 
 
 
@@ -131,13 +134,21 @@ int main(int argc, char const* argv[])
 		glm::mat4 Projection = glm::mat4(1.0f);
 		glm::mat4 ModelView = glm::mat4(1.0f);
 
+
+
 		ModelView = glm::translate(ModelView, glm::vec3(bg.cols / 2, bg.rows / 2, 0));
+		// ModelView = glm::rotate(ModelView, float(90.0f*3.14/180), glm::vec3(1, 0, 0));
+		// ModelView = glm::rotate(ModelView, float(0.0f), glm::vec3(0, 1, 0));
+		// ModelView = glm::rotate(ModelView, float(0.0f), glm::vec3(0, 0, 1));
+
 		float scl = 6;
 		float tx = 0;
 		float ty = 0;
 		float tz = 0;
-		ModelView = glm::scale(ModelView, glm::vec3(bg.cols / 2, bg.cols / 2, bg.cols / 2));
-
+		ModelView = glm::scale(ModelView, glm::vec3(bg.cols / 2*scl, bg.cols / 2 * scl, bg.cols / 2 * scl));
+		
+		//ModelView = glm::translate(ModelView, glm::vec3(0.0, 0.35, 0));
+		
 		renderer->setModelViewMatrix(ModelView);
 		renderer->setProjectionMatrix(Projection);
 		model.clearMesh();
@@ -148,32 +159,63 @@ int main(int argc, char const* argv[])
 			int vi3 = f3[i] - 1;
 			//std::cout << vx[vi1] << " " << vy[vi1] << " " << vz[vi1] << std::endl;
 			model.addFace(vi1, vi2, vi3);
-			model.addVertex((tx + vx[vi1]) * scl, (ty + vy[vi1]) * scl, (tz + vz[vi1]) * scl);
-			model.addVertex((tx + vx[vi2]) * scl, (ty + vy[vi2]) * scl, (tz + vz[vi2]) * scl);
-			model.addVertex((tx + vx[vi3]) * scl, (ty + vy[vi3]) * scl, (tz + vz[vi3]) * scl);
+			model.addVertex((vx[vi1]), (vy[vi1]), (vz[vi1]));
+			model.addVertex((vx[vi2]), (vy[vi2]), (vz[vi2]));
+			model.addVertex((vx[vi3]), (vy[vi3]), (vz[vi3]));
 
-			Eigen::Vector3f a, b, c, v1, v2, N;
-			a << vx[vi1], vy[vi1], vz[vi1];
-			b << vx[vi2], vy[vi2], vz[vi2];
-			c << vx[vi3], vy[vi3], vz[vi3];
+			glm::vec3 a, b, c, v1, v2, N;
+			a = glm::vec3( vx[vi1], vy[vi1], vz[vi1]);
+			b = glm::vec3(vx[vi2], vy[vi2], vz[vi2]);
+			c = glm::vec3(vx[vi3], vy[vi3], vz[vi3]);
 			// compute normals
 			v1 = b - a;
 			v2 = b - c;
-			N << v1[1] * v2[2] - v1[2] * v2[1],
-				v1[2] * v2[0] - v1[0] * v2[2],
-				v1[0] * v2[1] - v1[1] * v2[0];
-			N = N.normalized().eval();
-
-			model.addNormal(N(0), N(1), N(2));
-			model.addNormal(N(0), N(1), N(2));
-			model.addNormal(N(0), N(1), N(2));
+			N[0] = v1[1] * v2[2] - v1[2] * v2[1];
+			N[1] = v1[2] * v2[0] - v1[0] * v2[2];
+			N[2] = v1[0] * v2[1] - v1[1] * v2[0];
+			N[0] = N[0]/N.length();
+			N[1] = N[1] / N.length();
+			N[2] = N[2] / N.length();
+			model.addNormal(N[0], N[1], N[2]);
+			model.addNormal(N[0], N[1], N[2]);
+			model.addNormal(N[0], N[1], N[2]);
 
 			model.addTexCoord(0, 0);
 			model.addTexCoord(0, 1);
 			model.addTexCoord(1, 1);
 		}
+		model.jx = jx;
+		model.jy = jy;
+		model.jz = jz;
+		model.l1 = l1;
+		model.l2 = l2;
 		renderer->Render(&model);
 		renderer->getImage(face);
+		/*
+		std::vector<glm::vec3> vert3d;
+		std::vector<glm::vec2> vert2d;
+		for (int i = 0; i < vx.size(); ++i)
+		{
+			vert3d.push_back(glm::vec3(vx[i], vy[i], vz[i]));
+		}
+		renderer->projectPoints(vert3d, vert2d);
+
+		for (int i = 0; i < vx.size(); ++i)
+		{
+			cv::Point p = cv::Point(vert2d[i][0], vert2d[i][1]);
+			std::cout << p << std::endl;
+			//cv::circle(face,p, 2, cv::Scalar(0, 255, 0), -1);
+
+			cv::putText(face, //target image
+				std::to_string(i), //text
+				p, //top-left position
+				cv::FONT_HERSHEY_SIMPLEX,
+				0.3,
+				CV_RGB(255, 255, 0), //font color
+				1);
+
+		}
+		*/
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		std::cout << "Elapsed time (seconds) :" << t;
 		cv::imshow("face", face);

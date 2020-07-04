@@ -153,23 +153,22 @@ private: // PIRVATE ATTRIBUTES
     torch::Device m__device;
 
     torch::Tensor m__restShape;
-    torch::Tensor m__transformation;
+    
     torch::Tensor m__weights;
     torch::Tensor m__posedVert;
 
 protected: // PROTECTED ATTRIBUTES
 
 public: // PUBLIC ATTRIBUTES
-
+    torch::Tensor m__transformation;
 private: // PRIVATE METHODS
-
-    // %% Linear Blend Skinning %%
-    torch::Tensor cart2homo(torch::Tensor &cart) noexcept(false);
-    torch::Tensor homo2cart(torch::Tensor &homo) noexcept(false);
 
 protected: // PROTECTED METHODS
 
 public: // PUBLIC METHODS
+    // %% Linear Blend Skinning %%
+    torch::Tensor cart2homo(torch::Tensor& cart) noexcept(false);
+    torch::Tensor homo2cart(torch::Tensor& homo) noexcept(false);
 
     // %% Constructor and Destructor %%
     LinearBlendSkinning() noexcept(true);

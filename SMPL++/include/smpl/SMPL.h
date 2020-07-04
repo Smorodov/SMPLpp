@@ -264,6 +264,15 @@ public: // PUBLIC METHODS
         std::vector<size_t>& f2,
         std::vector<size_t>& f3
     ) noexcept(false);
+
+    void getSkeleton(int64_t index,
+        std::vector<int64_t>& l1,
+        std::vector<int64_t>& l2,
+        std::vector<float>& jx,
+        std::vector<float>& jy,
+        std::vector<float>& jz
+    ) noexcept(false);
+
 };
 
 //=============================================================================
