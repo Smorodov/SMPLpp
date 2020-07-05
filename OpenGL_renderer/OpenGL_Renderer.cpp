@@ -2,7 +2,6 @@
 
 using namespace std;
 using namespace cv;
-using namespace Eigen;
 
 // 3d transformation matrices
 glm::mat4 OpenGL_Renderer::Projection;

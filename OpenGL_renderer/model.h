@@ -6,7 +6,7 @@
 #include <glm/vec4.hpp> // glm::vec4
 #include <glm/mat4x4.hpp> // glm::mat4
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
-#include "Eigen/Eigen"
+//#include "Eigen/Eigen"
 
 class GLModel
 {
@@ -40,7 +40,7 @@ class GLModel
 		std::vector<int64_t> l1;
 		std::vector<int64_t> l2;
 
-		Eigen::MatrixXf texture;
+		
 };
 #endif //__MODEL_H__
 

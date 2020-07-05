@@ -48,7 +48,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES("OpenGL_renderer")
 INCLUDE_DIRECTORIES("glew/include")
 INCLUDE_DIRECTORIES("glm")
-include_directories("${CMAKE_SOURCE_DIR}/../Eigen")
+# include_directories("${CMAKE_SOURCE_DIR}/../Eigen")
 include_directories("${CMAKE_SOURCE_DIR}/./zlib")
 
 ##
