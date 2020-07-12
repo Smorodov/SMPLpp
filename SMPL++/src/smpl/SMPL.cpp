@@ -1,41 +1,8 @@
-/* ========================================================================= *
- *                                                                           *
- *                                 SMPL++                                    *
- *                    Copyright (c) 2018, Chongyi Zheng.                     *
- *                          All Rights reserved.                             *
- *                                                                           *
- * ------------------------------------------------------------------------- *
- *                                                                           *
- * This software implements a 3D human skinning model - SMPL: A Skinned      *
- * Multi-Person Linear Model with C++.                                       *
- *                                                                           *
- * For more detail, see the paper published by Max Planck Institute for      *
- * Intelligent Systems on SIGGRAPH ASIA 2015.                                *
- *                                                                           *
- * We provide this software for research purposes only.                      *
- * The original SMPL model is available at http://smpl.is.tue.mpg.           *
- *                                                                           *
- * ========================================================================= */
-
-//=============================================================================
-//
-//  CLASS SMPL IMPLEMENTATIONS
-//
-//=============================================================================
-
-
-//===== EXTERNAL MACROS =======================================================
-
-
-//===== INCLUDES ==============================================================
-
-//----------
 #include <fstream>
 #include <filesystem>
+#include <torch/torch.h>
 //----------
-#include <xtensor/xarray.hpp>
-#include <xtensor/xadapt.hpp>
-#include "xtensor-io/xnpz.hpp"
+// #include <Eigen/Eigen>
 //----------
 #include "definition/def.h"
 #include "toolbox/TorchEx.hpp"
@@ -48,11 +15,6 @@
         std::cout << x << std::endl;\
         std::cout << "--------------------" << std::endl;
 #define SHOW_IMG(x) cv::namedWindow(#x);cv::imshow(#x,x);cv::waitKey(20);
-
-//===== EXTERNAL FORWARD DECLARATIONS =========================================
-
-
-//===== NAMESPACES ============================================================
 
 namespace smpl {
 
@@ -526,82 +488,139 @@ torch::Tensor SMPL::getVertex() noexcept(false)
  * 
  * 
  */
+
+ // -----------------------------
+  //  Load NPZ numpy file
+  // -----------------------------
+template<typename T>static void loadNumpy2DArray(std::string fname, Eigen::MatrixXf& coeffs)
+{
+    std::cout << " ------------------------: " << std::endl;
+    std::cout << "Loading 2D numpy array: " << fname << std::endl;
+    std::cout << " ------------------------: " << std::endl;
+    cnpy::npz_t my_npz = cnpy::npz_load(fname);
+    std::vector<std::string> v;
+    for (std::map<std::string, cnpy::NpyArray>::iterator it = my_npz.begin(); it != my_npz.end(); ++it)
+    {
+        v.push_back(it->first);
+        std::cout << it->first << "\n";
+    }
+    if (v.size() != 1)
+    {
+        std::cout << " ------------------------: " << std::endl;
+        std::cout << " More than 1 variable inside! " << std::endl;
+        std::cout << " ------------------------: " << std::endl;
+    }
+    cnpy::NpyArray npyC = my_npz[v[0]];
+
+    std::cout.setf(std::ios::fixed);
+    std::cout.unsetf(std::ios::scientific);
+    std::cout.precision(8);
+
+    if (npyC.shape.size() == 1)
+    {
+        npyC.shape.push_back(1);
+        //std::swap(npyC.shape[0], npyC.shape[1]);
+    }
+
+    std::cout << "Array shape " << npyC.shape[0] << "," << npyC.shape[1] << std::endl;
+    T* C = npyC.data<T>();
+    coeffs = Eigen::MatrixXf(npyC.shape[0], npyC.shape[1]);
+
+    std::cout << " --------- coefficients -----------" << std::endl;
+    int ind = 0;
+    for (int i = 0; i < npyC.shape[0]; ++i)
+    {
+        for (int j = 0; j < npyC.shape[1]; ++j)
+        {
+            coeffs(i, j) = C[ind];
+            //std::cout << coeffs(i, j) << "\t`";
+            ++ind;
+        }
+        //std::cout << std::endl;
+    }
+
+    std::cout << " --------- done -----------" << std::endl;
+}
+
+
 void SMPL::init() noexcept(false)
-{          
+{
     std::cout << "---------------------------"<< std::endl;
     std::cout << "Loding SMPL model file: " << m__modelPath << std::endl;
     std::cout << "---------------------------" << std::endl;
-    auto npz_map = xt::load_npz(m__modelPath);
-        //
-        // data loading
-        //
-        // face indices
-        xt::xarray<uint32_t> faceIndices=npz_map["face_indices"].cast<uint32_t>();                
-        
-        face_index_num = faceIndices.shape()[0];
-        COUT_VAR(face_index_num);
+    cnpy::npz_t npz_map = cnpy::npz_load(m__modelPath);
+    
+    // face indices
+    cnpy::NpyArray faceIndices = npz_map["face_indices"];
+    face_index_num = faceIndices.shape[0];
+    COUT_VAR(face_index_num);
 
-        m__faceIndices = torch::from_blob(faceIndices.data(),
-            {FACE_INDEX_NUM, 3}, torch::kInt32).clone().to(
-                m__device);
+    m__faceIndices = torch::from_blob(faceIndices.data<int>(),{ FACE_INDEX_NUM, 3 }, torch::kInt32).clone().to(m__device);
+    std::cout << "test 1" << std::endl;
+    //m__faceIndices = m__faceIndices.toType(torch::kInt64);
+    std::cout << "test 2" << std::endl;
 
-        xt::xarray<float> templateRestShape = npz_map["vertices_template"].cast<double>();
-        vertex_num = templateRestShape.shape()[0];
-        COUT_VAR(vertex_num);
+    // mean mesh
+    cnpy::NpyArray templateRestShape = npz_map["vertices_template"];
+    vertex_num = templateRestShape.shape[0];
+    m__templateRestShape = torch::from_blob(templateRestShape.data<double>(),{ vertex_num, 3 }, torch::kF64).to(m__device);// (6890, 3)   
+    COUT_VAR(vertex_num);
+    m__templateRestShape=m__templateRestShape.toType(torch::kF32);
+   
+    // blender
+    cnpy::NpyArray shapeBlendBasis = npz_map["shape_blend_shapes"];   
+    shape_basis_dim = shapeBlendBasis.shape[2];    
+    
+    COUT_VAR(shape_basis_dim);
 
-        // blender
-        xt::xarray<float> shapeBlendBasis = npz_map["shape_blend_shapes"].cast<double>();
-        xt::xarray<float> poseBlendBasis = npz_map["pose_blend_shapes"].cast<double>();
+    cnpy::NpyArray poseBlendBasis = npz_map["pose_blend_shapes"];
+    pose_basis_dim = poseBlendBasis.shape[2];
+    COUT_VAR(pose_basis_dim);
 
-        shape_basis_dim = shapeBlendBasis.shape()[2];
-        COUT_VAR(shape_basis_dim);
+    m__shapeBlendBasis = torch::from_blob(shapeBlendBasis.data<double>(),
+        { vertex_num, 3, shape_basis_dim }, torch::kF64).to(m__device);// (6890, 3, 10)
+    m__shapeBlendBasis = m__shapeBlendBasis.toType(torch::kF32);
+    m__poseBlendBasis = torch::from_blob(poseBlendBasis.data<double>(),
+        { vertex_num, 3, pose_basis_dim }, torch::kF64).to(m__device);// (6890, 3, 207)
+    m__poseBlendBasis = m__poseBlendBasis.toType(torch::kF32);
 
-        pose_basis_dim = poseBlendBasis.shape()[2];
-        COUT_VAR(pose_basis_dim);
-        
-        m__shapeBlendBasis = torch::from_blob(shapeBlendBasis.data(),
-            {vertex_num, 3, shape_basis_dim},torch::kF32).to(m__device);// (6890, 3, 10)
-        
-        
-        m__poseBlendBasis = torch::from_blob(poseBlendBasis.data(),
-            {vertex_num, 3, pose_basis_dim}, torch::kF32).to(m__device);// (6890, 3, 207)
-
-        // regressor
-        xt::xarray<float> jointRegressor = npz_map["joint_regressor"].cast<double>();
-
-        joint_num = jointRegressor.shape()[0];
-        COUT_VAR(joint_num);
-
-        
-        m__templateRestShape = torch::from_blob(templateRestShape.data(),
-            {vertex_num, 3}).to(m__device);// (6890, 3)
-      
-        m__jointRegressor = torch::from_blob(jointRegressor.data(),
-            {joint_num, vertex_num}).to(m__device);// (24, 6890)
-
-        xt::xarray<int64_t> kinematicTree = npz_map["kinematic_tree"].cast<int64_t>();                
-        
-        for (int i = 0; i < kinematicTree.shape()[0]; ++i)
+    cnpy::NpyArray jointRegressor = npz_map["joint_regressor"];
+    joint_num = jointRegressor.shape[0];
+    COUT_VAR(joint_num);
+    m__jointRegressor = torch::from_blob(jointRegressor.data<double>(),
+        { joint_num, vertex_num },torch::kF64).to(m__device);// (24, 6890)   
+    m__jointRegressor = m__jointRegressor.toType(torch::kF32);
+   
+    // kinematicTree
+    cnpy::NpyArray kinematicTree = npz_map["kinematic_tree"];
+    face_index_num = faceIndices.shape[0];
+   
+    int ind = 0;
+    for (int i = 0; i < kinematicTree.shape[0]; ++i)
+    {
+        for (int j = 0; j < kinematicTree.shape[1]; ++j)
         {
-            for (int j = 0; j < kinematicTree.shape()[1]; ++j)
-            {
-                kinematicTree(i, j) = int(kinematicTree(i, j));
-            }
+            kinematicTree.data<int64_t>()[ind] = int(kinematicTree.data<int64_t>()[ind]);
+            ind++;
         }
+    }
+    
 
-        m__kinematicTree = torch::from_blob(kinematicTree.data(),
-            { 2, joint_num },torch::kInt64).to(m__device);// (2, 24)                
+    m__kinematicTree = torch::from_blob(kinematicTree.data<int64_t>(),
+        { 2, joint_num }, torch::kInt64).to(m__device);// (2, 24)  
 
-        // skinner
-        xt::xarray<float> weights = npz_map["weights"].cast<double>();
-       // xt::from_json(m__model["weights"], weights);
-        m__weights = torch::from_blob(weights.data(),
-            {vertex_num, joint_num}).to(m__device);// (6890, 24)
+
+    cnpy::NpyArray weights = npz_map["weights"];
+    m__weights = torch::from_blob(weights.data<double>(),
+        { vertex_num, joint_num }, torch::kF64).to(m__device);// (24, 6890)   
+    m__weights = m__weights.toType(torch::kF32);
+
         std::cout << "---------------------------" << std::endl;
         std::cout << " Successfully loaded " << std::endl;
         std::cout << "---------------------------" << std::endl;
-
+        
     return;
+    
 }
 
 /**launch
@@ -709,44 +728,31 @@ void SMPL::launch(
  */
 void SMPL::out(int64_t index) noexcept(false)
 {
-    torch::Tensor vertices = 
-        m__skinner.getVertex().clone().to(m__device);// (N, 6890, 3)
+    torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);// (N, 6890, 3)
 
-    if (vertices.sizes() ==
-            torch::IntArrayRef(
-                {batch_size, vertex_num, 3})
-        && m__faceIndices.sizes() ==
-            torch::IntArrayRef(
-                {FACE_INDEX_NUM, 3})
-        ) {
+    if (vertices.sizes() == torch::IntArrayRef({batch_size, vertex_num, 3}) && m__faceIndices.sizes() == torch::IntArrayRef({FACE_INDEX_NUM, 3}))
+    {
         std::ofstream file(m__vertPath);
 
         torch::Tensor slice_ = TorchEx::indexing(vertices,
             torch::IntList({index}));// (6890, 3)
-        xt::xarray<float> slice = xt::adapt(
-            (float *)slice_.to(torch::kCPU).data_ptr(),
-            xt::xarray<float>::shape_type({(const size_t)vertex_num, 3})
-        );
-        
-        xt::xarray<int32_t> faceIndices;
-        faceIndices = xt::adapt(
-            (int32_t *)m__faceIndices.to(torch::kCPU).data_ptr(),
-            xt::xarray<int32_t>::shape_type(
-                {(const size_t)FACE_INDEX_NUM, 3})
-        );
+        float* slice = (float*)slice_.to(torch::kCPU).data_ptr(); // vertex_num 3
+                
+
+        int32_t* faceIndices = (int32_t*)m__faceIndices.to(torch::kCPU).data_ptr();//FACE_INDEX_NUM, 3
 
         for (int64_t i = 0; i < vertex_num; i++) {
             file << 'v' << ' '
-                << slice(i, 0) << ' '
-                << slice(i, 1) << ' ' 
-                << slice(i, 2) << '\n';
+                << slice[3*i+0] << ' '
+                << slice[3*i+1] << ' ' 
+                << slice[3*i+2] << '\n';
         }
 
         for (int64_t i = 0; i < FACE_INDEX_NUM; i++) {
             file << 'f' << ' '
-                << faceIndices(i, 0) << ' '
-                << faceIndices(i, 1) << ' '
-                << faceIndices(i, 2) << '\n';
+                << faceIndices[3*i+0] << ' '
+                << faceIndices[3*i+1] << ' '
+                << faceIndices[3*i+2] << '\n';
         }
     }
     else {
@@ -775,8 +781,7 @@ void SMPL::getVandF(int64_t index,
     f2.clear();
     f3.clear();
 
-    torch::Tensor vertices =
-        m__skinner.getVertex().clone().to(m__device);// (N, 6890, 3)
+    torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);// (N, 6890, 3)
 
     if (vertices.sizes() ==
         torch::IntArrayRef(
@@ -787,32 +792,23 @@ void SMPL::getVandF(int64_t index,
         )
     {
  
-        torch::Tensor slice_ = TorchEx::indexing(vertices,
-            torch::IntList({ index }));// (6890, 3)
-        xt::xarray<float> slice = xt::adapt(
-            (float*)slice_.to(torch::kCPU).data_ptr(),
-            xt::xarray<float>::shape_type({ (const size_t)vertex_num, 3 })
-        );
-
-        xt::xarray<int32_t> faceIndices;
-        faceIndices = xt::adapt(
-            (int32_t*)m__faceIndices.to(torch::kCPU).data_ptr(),
-            xt::xarray<int32_t>::shape_type(
-                { (const size_t)FACE_INDEX_NUM, 3 })
-        );
-
+        torch::Tensor slice_ = TorchEx::indexing(vertices,torch::IntList({ index }));// (6890, 3)
+        float* slice = (float*)slice_.to(torch::kCPU).data_ptr();//vertex_num, 3
+ 
+        int32_t* faceIndices = (int32_t*)m__faceIndices.to(torch::kCPU).data_ptr();//FACE_INDEX_NUM, 3
+ 
         for (int64_t i = 0; i < vertex_num; i++)
         {
-            vx.push_back(slice(i, 0));
-            vy.push_back(slice(i, 1));
-            vz.push_back(slice(i, 2));
+            vx.push_back(slice[3*i+0]);
+            vy.push_back(slice[3*i+1]);
+            vz.push_back(slice[3*i+2]);
         }
 
         for (int64_t i = 0; i < FACE_INDEX_NUM; i++)
         {
-            f1.push_back(faceIndices(i, 0));
-            f2.push_back(faceIndices(i, 1));
-            f3.push_back(faceIndices(i, 2));
+            f1.push_back(faceIndices[3*i+ 0]);
+            f2.push_back(faceIndices[3*i+ 1]);
+            f3.push_back(faceIndices[3*i+ 2]);
         }
     }
     else
@@ -852,11 +848,11 @@ void SMPL::getSkeleton(int64_t index,
         for (int64_t i = 0; i < joint_num; i++)
         {
             torch::Tensor slice1_ = TorchEx::indexing(slice_, torch::IntList({ i }));// (joints_num, 3)
-            xt::xarray<float> slice = xt::adapt((float*)slice1_.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ 1, 4 }));
+            float* slice = (float*)slice1_.to(torch::kCPU).data_ptr();//1, 4));
 
             torch::Tensor tr_slice1_ = TorchEx::indexing(tr_slice_, torch::IntList({ i }));// (4, 4)
             tr_slice1_ = torch::transpose(tr_slice1_, 0, 1);
-            xt::xarray<float> tr_slice = xt::adapt((float*)tr_slice1_.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ 4, 4 }));
+            float* tr_slice = (float*)tr_slice1_.to(torch::kCPU).data_ptr();// 4, 4 ;
             // std::cout << "=====tt_slice1_=====" << std::endl;
             // std::cout << tr_slice1_ << std::endl;
             // std::cout << "==========" << std::endl;
@@ -864,18 +860,18 @@ void SMPL::getSkeleton(int64_t index,
             // std::cout << slice1_ << std::endl;                    
             // std::cout << "==========" << std::endl;
             torch::Tensor res = torch::matmul(slice1_, tr_slice1_);
-            xt::xarray<float> slice_res = xt::adapt((float*)res.to(torch::kCPU).data_ptr(), xt::xarray<float>::shape_type({ (const size_t)1, 4 }));
-            jx.push_back(slice_res(0, 0));
-            jy.push_back(slice_res(0, 1));
-            jz.push_back(slice_res(0, 2));
+            float* slice_res = (float*)res.to(torch::kCPU).data_ptr();// 1, 4 
+            jx.push_back(slice_res[0]);
+            jy.push_back(slice_res[1]);
+            jz.push_back(slice_res[2]);
         }
-        xt::xarray<int64_t> kinematicTree = xt::adapt((int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr(), xt::xarray<int64_t>::shape_type({ 2,(const size_t)joint_num }));
+        int64_t* kinematicTree = (int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr();//2,joint_num
         for (int64_t i = 0; i < joint_num; i++)
         {
-            l1.push_back(kinematicTree(0, i));
-            l2.push_back(kinematicTree(1, i));
+            l1.push_back(kinematicTree[i]);
+            l2.push_back(kinematicTree[i+ joint_num]);
             COUT_VAR(l1[i])
-                COUT_VAR(l2[i])
+            COUT_VAR(l2[i])
         }
 
         // we deal with hand model 
@@ -883,17 +879,15 @@ void SMPL::getSkeleton(int64_t index,
         {
             torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);
             torch::Tensor vslice_ = TorchEx::indexing(vertices, torch::IntList({ index }));
-            xt::xarray<float> vslice = xt::adapt(
-                (float*)vslice_.to(torch::kCPU).data_ptr(),
-                xt::xarray<float>::shape_type({ (const size_t)vertex_num, 3 })
-            );
+            float* vslice = (float*)vslice_.to(torch::kCPU).data_ptr();// vertex_num, 3
+            
 
             std::vector<int> tips = { 745,320,465,556,672 };
             for (int i = 0; i < tips.size(); ++i)
             {
-                jx.push_back(vslice(tips[i], 0));
-                jy.push_back(vslice(tips[i], 1));
-                jz.push_back(vslice(tips[i], 2));
+                jx.push_back(vslice[3*tips[i]+0]);
+                jy.push_back(vslice[3*tips[i]+1]);
+                jz.push_back(vslice[3*tips[i]+2]);
             }
 
             l1.push_back(3);

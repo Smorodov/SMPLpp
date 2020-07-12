@@ -48,9 +48,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES("OpenGL_renderer")
 INCLUDE_DIRECTORIES("glew/include")
 INCLUDE_DIRECTORIES("glm")
+include_directories("${CMAKE_SOURCE_DIR}")
 # include_directories("${CMAKE_SOURCE_DIR}/../Eigen")
-include_directories("${CMAKE_SOURCE_DIR}/./zlib")
-
+include_directories("${CMAKE_SOURCE_DIR}/zlib")
+INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/numpyLib")
+    
 ##
 ## GATHER FILES
 ##
@@ -80,6 +82,7 @@ file(GLOB SOURCE
     "OpenGL_renderer/OpenGL_renderer.cpp"
 	"OpenGL_renderer/GLSLShader.cpp"
 	"OpenGL_renderer/model.cpp"
+    "numpyLib/cnpy.cpp"
 )
 
 ##
@@ -89,30 +92,59 @@ set(SMPLXX_INCLUDE_DIRS
     "SMPL++/include"
 )
 
-set(XTENSOR_INCLUDE_DIRS
-   "${CMAKE_SOURCE_DIR}/./xtensor"
-   "${CMAKE_SOURCE_DIR}/./xtl"
-   "${CMAKE_SOURCE_DIR}/./xtensor-io"
-)
+set(LibTorchReleaseRoot "F:/Documents/Visual Studio 2019/projects/libtorch_release")
+set(LibTorchDebugRoot "F:/Documents/Visual Studio 2019/projects/libtorch_debug")
+
 set( TORCH_INCLUDE_DIRS
-"F:/Documents/Visual Studio 2019/projects/libtorch_release/include"
-"F:/Documents/Visual Studio 2019/projects/libtorch_release/include/torch/csrc/api/include/"
+"${LibTorchReleaseRoot}/include"
+"${LibTorchReleaseRoot}/include/torch/csrc/api/include"
 )
     
 set(PROJECT_INCLUDE_DIRS
-    ${SMPLXX_INCLUDE_DIRS}
-    ${XTENSOR_INCLUDE_DIRS}
+    ${SMPLXX_INCLUDE_DIRS}    
     ${TORCH_INCLUDE_DIRS}
 )
 
 ##
 ## LIBRARIES
 ##
+# set(TORCH_LIBRARIES
+#     optimized "${LibTorchReleaseRoot}/lib/c10.lib"
+#     optimized "${LibTorchReleaseRoot}/lib/torch.lib"
+#     debug "f${LibTorchDebugRoot}/libtorch-debug/lib/c10.lib"
+#     debug "f${LibTorchDebugRoot}/libtorch-debug/lib/torch.lib"
+# 
+# )
+
 set(TORCH_LIBRARIES
-    optimized "F:/Documents/Visual Studio 2019/projects/libtorch_release/lib/c10.lib"
-    optimized "F:/Documents/Visual Studio 2019/projects/libtorch_release/lib/torch.lib"
-    debug "f:/Documents/Visual Studio 2019/projects/libtorch-debug/lib/c10.lib"
-    debug "f:/Documents/Visual Studio 2019/projects/libtorch-debug/lib/torch.lib"
+    optimized "${LibTorchReleaseRoot}/lib/c10.lib"
+    optimized "${LibTorchReleaseRoot}/lib/c10_cuda.lib"
+    optimized "${LibTorchReleaseRoot}/lib/torch.lib"
+    optimized "${LibTorchReleaseRoot}/lib/torch_cpu.lib"
+    optimized "${LibTorchReleaseRoot}/lib/torch_cuda.lib"
+    optimized "${LibTorchReleaseRoot}/lib/clog.lib"
+    optimized "${LibTorchReleaseRoot}/lib/cpuinfo.lib"    
+    optimized "${LibTorchReleaseRoot}/lib/asmjit.lib"
+    optimized "${LibTorchReleaseRoot}/lib/fbgemm.lib"
+    optimized "${LibTorchReleaseRoot}/lib/libprotobuf.lib"
+    optimized "${LibTorchReleaseRoot}/lib/libprotobuf-lite.lib"
+    optimized "${LibTorchReleaseRoot}/lib/libprotoc.lib"
+    optimized "${LibTorchReleaseRoot}/lib/mkldnn.lib"
+
+
+    debug "${LibTorchDebugRoot}/lib/c10.lib"
+    debug "${LibTorchDebugRoot}/lib/c10_cuda.lib"
+    debug "${LibTorchDebugRoot}/lib/torch.lib"
+    debug "${LibTorchDebugRoot}/lib/torch_cpu.lib"
+    debug "${LibTorchDebugRoot}/lib/torch_cuda.lib"
+    debug "${LibTorchDebugRoot}/lib/clog.lib"
+    debug "${LibTorchDebugRoot}/lib/cpuinfo.lib"    
+    debug "${LibTorchDebugRoot}/lib/asmjit.lib"
+    debug "${LibTorchDebugRoot}/lib/fbgemm.lib"
+    debug "${LibTorchDebugRoot}/lib/libprotobufd.lib"
+    debug "${LibTorchDebugRoot}/lib/libprotobuf-lited.lib"
+    debug "${LibTorchDebugRoot}/lib/libprotocd.lib"
+    debug "${LibTorchDebugRoot}/lib/mkldnn.lib"
 
 )
 

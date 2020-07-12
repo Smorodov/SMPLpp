@@ -1,15 +1,284 @@
-#define SINGLE_SMPL smpl::Singleton<smpl::SMPL>
+
 #include <chrono>
 #include <torch/torch.h>
 #include "definition/def.h"
 #include "toolbox/Singleton.hpp"
 #include "smpl/SMPL.h"
-
+#define SINGLE_SMPL smpl::Singleton<smpl::SMPL>
 #include "opencv2/opencv.hpp"
 #include <limits>
 #include "OpenGL_Renderer.h"
 #include "GLSLShader.h"
+/*
+class TrackBall
+{
+public:
+	// Высота и ширина окна отображения
+	int		width;
+	int		height;
+	int		gMouseX;
+	int		gMouseY;
+	POINT	lastPos;
+	double	Vvx, Vvy, Vvz;
+	double	Vglx, Vgly, Vglz;
+	double	Vprx, Vpry, Vprz;
+	double	mx0, my0, mx1, my1;
+	GLdouble vx1, vy1, vz1;
+	double	ViewMatrix[16];
+	double	xp, yp, zp;
+	double	dx, dy, dz;
+	double	rx, ry, rz;
+	double	kx;
+	int		button;
+	double	obj_size;
+	double	X0, Y0, Z0;
+	double	Pi;
+	double	deg;
+	double	last_ang;
+	double	X, Y, Z;
+	double	xRot;
+	double	yRot;
+	double	zRot;
 
+	TrackBall(int w,int h)
+	{
+		width = w;
+		height = h;
+		gMouseX = 0;
+		gMouseY = 0;
+		obj_size = 1;
+		X0 = 0;
+		Y0 = 0;
+		Z0 = 0;
+		Pi = 3.14159265358979323846;
+		deg = Pi / 180;
+		last_ang = 0;
+		X = 0;
+		Y = 0;
+		Z = 0;
+		xRot = 0;
+		yRot = 0;
+		zRot = 0;
+	}
+	~TrackBall()
+	{
+
+	}
+	//--------------------------------------------------------------------------
+	//
+	//--------------------------------------------------------------------------
+	void Arrow(float x1, float y1, float z1, float x2, float y2, float z2)
+	{
+		float l = sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1));
+		glPushMatrix();
+		glTranslatef(x1, y1, z1);
+		if (l != 0) { glRotatef(180, (x2 - x1) / (2 * l), (y2 - y1) / (2 * l), (z2 - z1 + l) / (2 * l)); }
+		GLUquadricObj* quadObj;
+		quadObj = gluNewQuadric();
+		gluQuadricDrawStyle(quadObj, GLU_FILL);
+		gluCylinder(quadObj, l / 20, l / 20, l, 8, 1);
+		glTranslatef(0, 0, l);
+		gluCylinder(quadObj, l / 10, 0, l / 4, 8, 1);
+		glPopMatrix();
+		gluDeleteQuadric(quadObj);
+	}
+	//--------------------------------------------------------------------------
+	//
+	//--------------------------------------------------------------------------
+	void MouseWheelCallback(int wheel, int direction, int x, int y)
+	{
+		if (direction > 0)
+		{
+			obj_size *= 0.95;
+		}
+		else if (direction < 0)
+		{
+			obj_size *= 1.05;
+		}
+	}
+	//--------------------------------------------------------------------------  
+	// Функция обработки нажатий кнопок мыши
+	//--------------------------------------------------------------------------
+	void MouseCallback1(int _button, int state, int x, int y)
+	{
+		// Used for wheels, has to be up
+		// if (_button == GLUT_LEFT_BUTTON) { button = 1; }
+		// if (_button == GLUT_MIDDLE_BUTTON) { button = 3; }
+		// if (_button == GLUT_RIGHT_BUTTON) { button = 2; }
+		button = _button;
+		dx = 0;
+		dy = 0;
+		lastPos.x = x;
+		lastPos.y = y;
+	}
+
+	//--------------------------------------------------------------------------
+	// Функция обработки перемещений мыши
+	//-------------------------------------------------------------------------- 
+	void MotionCallback(int x, int y)
+	{
+		if (button > 0)
+		{
+			dx = x - lastPos.x;
+			dy = y - lastPos.y;
+			lastPos.x = x;
+			lastPos.y = y;
+		}
+		else
+		{
+			dx = 0;
+			dy = 0;
+		}
+	}
+	//--------------------------------------------------------------------------
+	//
+	//--------------------------------------------------------------------------
+	void renderScene(void)
+	{
+		float glmat[16];
+
+		// Clear buffers
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//********************************************************
+		GLdouble nRange = obj_size;
+		int w = width;
+		int h = height;
+		if (h == 0) { h = 1; }
+		glViewport(0, 0, w, h);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		if (w <= h)
+		{
+			glOrtho(-nRange, nRange, -nRange * h / w, nRange * h / w, -200 * nRange, 200 * nRange);
+		}
+		else
+		{
+			glOrtho(-nRange * w / h, nRange * w / h, -nRange, nRange, -200 * nRange, 200 * nRange);
+		}
+		gluPerspective(30.0f, 2, 1.5, 1.5);
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+
+		glPushMatrix();
+		GLint  viewport1[4] = { 0 };
+		double projection1[16] = { 0 };
+		double modelview1[16] = { 0 };
+		double wx1, wy1, wz1;
+
+		glGetIntegerv(GL_VIEWPORT, &viewport1[0]);
+		glGetDoublev(GL_PROJECTION_MATRIX, &projection1[0]);
+		glGetDoublev(GL_MODELVIEW_MATRIX, &modelview1[0]);
+		gluProject(xp, yp, zp, &modelview1[0], &projection1[0], &viewport1[0], &vx1, &vy1, &vz1);
+
+		if (button == 3)
+		{
+			vx1 = vx1 + dx;
+			vy1 = vy1 - dy;
+		}
+
+		gluUnProject(vx1, vy1, 0, modelview1, projection1, viewport1, &wx1, &wy1, &wz1);
+
+		if (button == 3 && wx1 != 0 && wy1 != 0)
+		{
+			xp = wx1;
+			yp = wy1;
+			zp = 0;
+		}
+		glTranslatef(xp, 0.0, 0.0);
+		glTranslatef(0.0, yp, 0.0);
+		glTranslatef(0.0, 0.0, zp);
+
+		if (button == 1)
+		{
+			double LVgl = 1, LVv = 1, LVpr = 1;
+			dx /= 100;
+			Vprx = Vprx - Vglx * (-dx);
+			Vpry = Vpry - Vgly * (-dx);
+			Vprz = Vprz - Vglz * (-dx);
+			dy /= 100;
+			Vvx = Vvx - Vglx * (dy);
+			Vvy = Vvy - Vgly * (dy);
+			Vvz = Vvz - Vglz * (dy);
+
+			Vglx = Vpry * Vvz - Vprz * Vvy;
+			Vgly = Vprz * Vvx - Vprx * Vvz;
+			Vglz = Vprx * Vvy - Vpry * Vvx;
+
+			Vprx = Vvy * Vglz - Vvz * Vgly;
+			Vpry = Vvz * Vglx - Vvx * Vglz;
+			Vprz = Vvx * Vgly - Vvy * Vglx;
+
+			LVgl = sqrt(Vglx * Vglx + Vgly * Vgly + Vglz * Vglz);
+			LVv = sqrt(Vvx * Vvx + Vvy * Vvy + Vvz * Vvz);
+			LVpr = sqrt(Vprx * Vprx + Vpry * Vpry + Vprz * Vprz);
+
+			if (LVgl != 0)
+			{
+				Vglx = Vglx / LVgl;
+				Vgly = Vgly / LVgl;
+				Vglz = Vglz / LVgl;
+			}
+			if (LVpr != 0)
+			{
+				Vprx = Vprx / LVpr;
+				Vpry = Vpry / LVpr;
+				Vprz = Vprz / LVpr;
+			}
+			if (LVv != 0)
+			{
+				Vvx = Vvx / LVv;
+				Vvy = Vvy / LVv;
+				Vvz = Vvz / LVv;
+			}
+		}
+		gluLookAt(Vglx, Vgly, Vglz, 0, 0, 0, Vvx, Vvy, Vvz);
+		//-------------------------------------------------------------------------
+		glTranslatef(X0, 0.0, 0.0);
+		glTranslatef(0.0, Y0, 0.0);
+		glTranslatef(0.0, 0.0, Z0);
+		//-------------------------------------------------------------------------
+		int    viewport[4] = { 0 };
+		double projection[16] = { 0 };
+		double modelview[16] = { 0 };
+		double vx, vy, vz;
+		double wx, wy, wz;
+
+		glGetIntegerv(GL_VIEWPORT, &viewport[0]);
+		glGetDoublev(GL_PROJECTION_MATRIX, &projection[0]);
+		glGetDoublev(GL_MODELVIEW_MATRIX, &modelview[0]);
+		vx = 50;
+		vy = 50 - 1;
+		vz = 0.01;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		if (gluUnProject(vx, vy, vz, &modelview[0], &projection[0], &viewport[0], &wx, &wy, &wz))
+		{
+			glColor3f(1, 0, 0);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+			//	renderText (wx+((double)size+0.5)/10,wy,wz,"X");
+			Arrow(wx, wy, wz, wx + (double)obj_size / 10, wy, wz);
+			glColor3f(0, 1, 0);
+			//	renderText (wx,wy+((double)size+0.5)/10,wz,"Y");
+			Arrow(wx, wy, wz, wx, wy + (double)obj_size / 10, wz);
+			glColor3f(0, 0, 1);
+			//	renderText (wx,wy,wz+((double)size+0.5)/10,"Z");
+			Arrow(wx, wy, wz, wx, wy, wz + (double)obj_size / 10);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		}
+
+		//--------------------------------------------------------------------------
+		glGetDoublev(GL_MODELVIEW_MATRIX, ViewMatrix);
+		//--------------------------------------------------------------------------
+		// Render all here
+		// display();
+		// ----------------
+		glPopMatrix();
+		dx = 0;
+		dy = 0;
+	}
+};
+*/
 // ----------------------------------------------------------------------
 // Resizes image to given size, preserving sides ratio
 // ----------------------------------------------------------------------
@@ -106,7 +375,7 @@ int main(int argc, char const* argv[])
 
 			vertices = SINGLE_SMPL::get()->getVertex();
 			SINGLE_SMPL::get()->setVertPath("model.obj");
-			SINGLE_SMPL::get()->out(0);
+			//SINGLE_SMPL::get()->out(0);
 		}
 		catch (std::exception& e)
 		{

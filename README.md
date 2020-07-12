@@ -23,8 +23,7 @@ Project adopted to use with OpenCV library and includes renderer to cv::Mat imag
 - Packages
 
 1. [libTorch](https://pytorch.org/get-started/locally/): Pytorch C++ API.    
-3. Eigen lineae algebra library
-4. [CMake](https://cmake.org/download/): A tool to build, test and pack up 
+2. [CMake](https://cmake.org/download/): A tool to build, test and pack up 
    C++ program.
 5. Opencv 4.x
 

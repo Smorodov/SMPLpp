@@ -1,39 +1,37 @@
 #pragma once
-/* ========================================================================= *
- *                                                                           *
- *                                 SMPL++                                    *
- *                    Copyright (c) 2018, Chongyi Zheng.                     *
- *                          All Rights reserved.                             *
- *                                                                           *
- * ------------------------------------------------------------------------- *
- *                                                                           *
- * This software implements a 3D human skinning model - SMPL: A Skinned      *
- * Multi-Person Linear Model with C++.                                       *
- *                                                                           *
- * For more detail, see the paper published by Max Planck Institute for      *
- * Intelligent Systems on SIGGRAPH ASIA 2015.                                *
- *                                                                           *
- * We provide this software for research purposes only.                      *
- * The original SMPL model is available at http://smpl.is.tue.mpg.           *
- *                                                                           *
- * ========================================================================= */
-
-//=============================================================================
-//
-//  CLASS SMPL DECLARATIONS
-//
-//=============================================================================
-
 #ifndef SMPL_H
 #define SMPL_H
-
-//===== EXTERNAL MACROS =======================================================
-
-
-//===== INCLUDES ==============================================================
-
-//----------
 #include <string>
+
+#define _CRT_SECURE_NO_DEPRECATE
+// #define EIGEN_RUNTIME_NO_MALLOC // Define this symbol to enable runtime tests for allocations
+// -------------------
+// Eigen
+// -------------------
+// #include "Eigen/Eigen"
+// -------------------
+// zlib
+// -------------------
+#include "zlib/zlib.h"
+#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
+#include <fcntl.h>
+#include <io.h>
+#define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)
+#else
+#  define SET_BINARY_MODE(file)
+#endif
+
+#define CHECK_ERR(err, msg) { \
+    if (err != Z_OK) { \
+        fprintf(stderr, "%s error: %d\n", msg, err); \
+        exit(1); \
+    } \
+}
+// -------------------
+// Numpy library
+// -------------------
+#include "cnpy.h"
+
 //----------
 #include <torch/torch.h>
 //----------
@@ -41,21 +39,12 @@
 #include "smpl/JointRegression.h"
 #include "smpl/WorldTransformation.h"
 #include "smpl/LinearBlendSkinning.h"
-#include <xtensor/xio.hpp> // for cout for xtensor
 
 #define COUT_VAR(x) std::cout << #x"=" << x << std::endl;
 #define COUT_ARR(x) std::cout << "---------"#x"---------" << std::endl;\
         COUT_ARR(x) std::cout << x << std::endl;\
         COUT_ARR(x) std::cout << "---------"#x"---------" << std::endl;
 #define SHOW_IMG(x) cv::namedWindow(#x);cv::imshow(#x,x);cv::waitKey(20);
-
-
-//----------
-
-//===== EXTERNAL FORWARD DECLARATIONS =========================================
-
-
-//===== NAMESPACES ============================================================
 
 namespace smpl {
 
