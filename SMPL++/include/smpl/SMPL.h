@@ -42,8 +42,8 @@
 
 #define COUT_VAR(x) std::cout << #x"=" << x << std::endl;
 #define COUT_ARR(x) std::cout << "---------"#x"---------" << std::endl;\
-        COUT_ARR(x) std::cout << x << std::endl;\
-        COUT_ARR(x) std::cout << "---------"#x"---------" << std::endl;
+        std::cout << x << std::endl;\
+        std::cout << "---------"#x"---------" << std::endl;
 #define SHOW_IMG(x) cv::namedWindow(#x);cv::imshow(#x,x);cv::waitKey(20);
 
 namespace smpl {

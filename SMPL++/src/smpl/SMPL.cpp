@@ -605,7 +605,7 @@ void SMPL::launch(
         //
         // blend shapes
         //
-        m__blender.setBeta(beta);
+        m__blender.setBeta(beta);        
         m__blender.setTheta(theta);
         m__blender.setShapeBlendBasis(m__shapeBlendBasis);
         m__blender.setPoseBlendBasis(m__poseBlendBasis);
@@ -613,9 +613,11 @@ void SMPL::launch(
         m__blender.blend();
 
         torch::Tensor shapeBlendShape = m__blender.getShapeBlendShape();
+        //COUT_ARR(shapeBlendShape)
         torch::Tensor poseBlendShape = m__blender.getPoseBlendShape();
+        //COUT_ARR(poseBlendShape)
         torch::Tensor poseRotation = m__blender.getPoseRotation();
-
+        //COUT_ARR(poseRotation)
         //
         // regress joints
         //
@@ -729,7 +731,9 @@ void SMPL::getVandF(int64_t index,
     f2.clear();
     f3.clear();
 
-    torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);// (N, 6890, 3)
+    torch::Tensor vertices = m__skinner.getVertex().clone().to(torch::kCPU);// (N, 6890, 3)
+    
+   // COUT_ARR(vertices)
 
     if (vertices.sizes() ==
         torch::IntArrayRef(
@@ -741,22 +745,23 @@ void SMPL::getVandF(int64_t index,
     {
  
         torch::Tensor slice_ = TorchEx::indexing(vertices,torch::IntList({ index }));// (6890, 3)
-        float* slice = (float*)slice_.to(torch::kCPU).data_ptr();//vertex_num, 3
- 
-        int32_t* faceIndices = (int32_t*)m__faceIndices.to(torch::kCPU).data_ptr();//FACE_INDEX_NUM, 3
- 
+        torch::Tensor slice = slice_.to(torch::kCPU);//vertex_num, 3 
+                
+        torch::Tensor faceIndices = m__faceIndices.to(torch::kCPU);
+        //COUT_VAR(faceIndices)
+
         for (int64_t i = 0; i < vertex_num; i++)
         {
-            vx.push_back(slice[3*i+0]);
-            vy.push_back(slice[3*i+1]);
-            vz.push_back(slice[3*i+2]);
+            vx.push_back( ( (float*)(slice.data_ptr() ))[3*i+0]);
+            vy.push_back( ( (float*)(slice.data_ptr() ))[3*i+1]);
+            vz.push_back( ( (float*)(slice.data_ptr() ))[3*i+2]);
         }
 
         for (int64_t i = 0; i < FACE_INDEX_NUM; i++)
         {
-            f1.push_back(faceIndices[3*i+ 0]);
-            f2.push_back(faceIndices[3*i+ 1]);
-            f3.push_back(faceIndices[3*i+ 2]);
+            f1.push_back(( (int32_t*)faceIndices.data_ptr())[3*i+ 0]);
+            f2.push_back(( (int32_t*)faceIndices.data_ptr())[3*i+ 1]);
+            f3.push_back(( (int32_t*)faceIndices.data_ptr())[3*i+ 2]);
         }
     }
     else
@@ -783,22 +788,22 @@ void SMPL::getSkeleton(int64_t index,
     jz.clear();
  
     m__regressor.regress();
-    torch::Tensor joints=m__regressor.getJoint().clone().to(m__device);// (N, NJoints, 3)
-    torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, m__device);// (N, NJoints, 1)
+    torch::Tensor joints=m__regressor.getJoint().clone().to(torch::kCPU);// (N, NJoints, 3)
+    torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, torch::kCPU);// (N, NJoints, 1)
     torch::Tensor homo = torch::cat({ joints, ones }, 2);// (N, NJoints, 4)
-    torch::Tensor transforms = m__skinner.m__transformation.clone().to(m__device);// (N, NJoints, 4, 4)
+    torch::Tensor transforms = m__skinner.m__transformation.clone().to(torch::kCPU);// (N, NJoints, 4, 4)
     
     std::cout << "homo:" << homo << std::endl;
-    torch::Tensor slice_ = TorchEx::indexing(homo, torch::IntList({ index}));// (joints_num, 3)
-    torch::Tensor tr_slice_ = TorchEx::indexing(transforms, torch::IntList({ index}));// (4, 4)
+    torch::Tensor slice_ = TorchEx::indexing(homo, torch::IntList({ index})).to(torch::kCPU);// (joints_num, 3)
+    torch::Tensor tr_slice_ = TorchEx::indexing(transforms, torch::IntList({ index})).to(torch::kCPU);// (4, 4)
     if (homo.sizes() == torch::IntArrayRef({ batch_size, joint_num, 4 }))
     {
         for (int64_t i = 0; i < joint_num; i++)
         {
-            torch::Tensor slice1_ = TorchEx::indexing(slice_, torch::IntList({ i }));// (joints_num, 3)
+            torch::Tensor slice1_ = TorchEx::indexing(slice_, torch::IntList({ i })).to(torch::kCPU);// (joints_num, 3)
             float* slice = (float*)slice1_.to(torch::kCPU).data_ptr();//1, 4));
 
-            torch::Tensor tr_slice1_ = TorchEx::indexing(tr_slice_, torch::IntList({ i }));// (4, 4)
+            torch::Tensor tr_slice1_ = TorchEx::indexing(tr_slice_, torch::IntList({ i })).to(torch::kCPU);// (4, 4)
             tr_slice1_ = torch::transpose(tr_slice1_, 0, 1);
             float* tr_slice = (float*)tr_slice1_.to(torch::kCPU).data_ptr();// 4, 4 ;
             // std::cout << "=====tt_slice1_=====" << std::endl;
@@ -807,25 +812,27 @@ void SMPL::getSkeleton(int64_t index,
             // std::cout << "=====slice_=====" << std::endl;
             // std::cout << slice1_ << std::endl;                    
             // std::cout << "==========" << std::endl;
-            torch::Tensor res = torch::matmul(slice1_, tr_slice1_);
+            torch::Tensor res = torch::matmul(slice1_, tr_slice1_).to(torch::kCPU);
             float* slice_res = (float*)res.to(torch::kCPU).data_ptr();// 1, 4 
             jx.push_back(slice_res[0]);
             jy.push_back(slice_res[1]);
             jz.push_back(slice_res[2]);
         }
-        int64_t* kinematicTree = (int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr();//2,joint_num
+        
+        torch::Tensor kinematicTree = m__kinematicTree.to(torch::kCPU);
+        //int64_t* kinematicTree = (int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr();//2,joint_num
         for (int64_t i = 0; i < joint_num; i++)
         {
-            l1.push_back(kinematicTree[i]);
-            l2.push_back(kinematicTree[i+ joint_num]);
-            COUT_VAR(l1[i])
-            COUT_VAR(l2[i])
+            l1.push_back( ( (int64_t *)(kinematicTree.data_ptr()))[i]);
+            l2.push_back( ( (int64_t*)(kinematicTree.data_ptr()))[i+ joint_num]);
+            //COUT_VAR(l1[i])
+            //COUT_VAR(l2[i])
         }
 
         // we deal with hand model 
         if (face_index_num == 1538 && vertex_num == 778)
         {
-            torch::Tensor vertices = m__skinner.getVertex().clone().to(m__device);
+            torch::Tensor vertices = m__skinner.getVertex().clone().to(torch::kCPU);
             torch::Tensor vslice_ = TorchEx::indexing(vertices, torch::IntList({ index }));
             float* vslice = (float*)vslice_.to(torch::kCPU).data_ptr();// vertex_num, 3
             

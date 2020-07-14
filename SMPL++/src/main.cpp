@@ -320,7 +320,7 @@ int main(int argc, char const* argv[])
 	{
 		device_type = torch::kCPU;
 	}
-	torch::Device device(device_type);
+	torch::Device device(device_type,0);
 	device.set_index(0);
 
 	cv::Mat face;
@@ -348,7 +348,7 @@ int main(int argc, char const* argv[])
 	torch::Tensor beta;
 	torch::Tensor theta;
 
-	beta = 0.3 * torch::rand({ BATCH_SIZE, SHAPE_BASIS_DIM });
+	beta = 0.3 * torch::rand({ BATCH_SIZE, SHAPE_BASIS_DIM }).to(device);
 
 	float pose_rand_amplitude = 1;
 	while (k != 27)
@@ -371,7 +371,7 @@ int main(int argc, char const* argv[])
 			theta.data<float>()[i*3+1] = 0; // ry
 			theta.data<float>()[i*3+2] = 0; // rz
 		}
-
+		theta = theta.to(device);
 		try
 		{
 			const int64_t LOOPS = 1;

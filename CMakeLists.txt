@@ -88,7 +88,7 @@ file(GLOB SOURCE
 set(LibTorchReleaseRoot "F:/Documents/Visual Studio 2019/projects/libtorch_release")
 set(LibTorchDebugRoot "F:/Documents/Visual Studio 2019/projects/libtorch_debug")
 
-find_package(Torch REQUIRED PATHS "${LibTorchReleaseRoot}/share/cmake/Torch")
+find_package(Torch REQUIRED PATHS "${LibTorchDebugRoot}/share/cmake/Torch")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 include_directories(${TORCH_INCLUDE_DIRS})
 include_directories("SMPL++/include")
