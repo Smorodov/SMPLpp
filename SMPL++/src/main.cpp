@@ -309,8 +309,19 @@ using clk = std::chrono::system_clock;
 int main(int argc, char const* argv[])
 {
 	std::string modelPath = "female_model.npz";
-	torch::Device cuda(torch::kCPU);
-	cuda.set_index(0);
+
+	torch::DeviceType device_type;
+
+	if (torch::cuda::is_available())
+	{
+		device_type = torch::kCUDA;
+	}
+	else
+	{
+		device_type = torch::kCPU;
+	}
+	torch::Device device(device_type);
+	device.set_index(0);
 
 	cv::Mat face;
 	GLModel model;
@@ -329,7 +340,7 @@ int main(int argc, char const* argv[])
 
 
 	auto begin = clk::now();
-	SINGLE_SMPL::get()->setDevice(cuda);
+	SINGLE_SMPL::get()->setDevice(device);
 	SINGLE_SMPL::get()->setModelPath(modelPath);
 	SINGLE_SMPL::get()->init();
 	

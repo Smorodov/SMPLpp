@@ -489,59 +489,7 @@ torch::Tensor SMPL::getVertex() noexcept(false)
  * 
  */
 
- // -----------------------------
-  //  Load NPZ numpy file
-  // -----------------------------
-template<typename T>static void loadNumpy2DArray(std::string fname, Eigen::MatrixXf& coeffs)
-{
-    std::cout << " ------------------------: " << std::endl;
-    std::cout << "Loading 2D numpy array: " << fname << std::endl;
-    std::cout << " ------------------------: " << std::endl;
-    cnpy::npz_t my_npz = cnpy::npz_load(fname);
-    std::vector<std::string> v;
-    for (std::map<std::string, cnpy::NpyArray>::iterator it = my_npz.begin(); it != my_npz.end(); ++it)
-    {
-        v.push_back(it->first);
-        std::cout << it->first << "\n";
-    }
-    if (v.size() != 1)
-    {
-        std::cout << " ------------------------: " << std::endl;
-        std::cout << " More than 1 variable inside! " << std::endl;
-        std::cout << " ------------------------: " << std::endl;
-    }
-    cnpy::NpyArray npyC = my_npz[v[0]];
-
-    std::cout.setf(std::ios::fixed);
-    std::cout.unsetf(std::ios::scientific);
-    std::cout.precision(8);
-
-    if (npyC.shape.size() == 1)
-    {
-        npyC.shape.push_back(1);
-        //std::swap(npyC.shape[0], npyC.shape[1]);
-    }
-
-    std::cout << "Array shape " << npyC.shape[0] << "," << npyC.shape[1] << std::endl;
-    T* C = npyC.data<T>();
-    coeffs = Eigen::MatrixXf(npyC.shape[0], npyC.shape[1]);
-
-    std::cout << " --------- coefficients -----------" << std::endl;
-    int ind = 0;
-    for (int i = 0; i < npyC.shape[0]; ++i)
-    {
-        for (int j = 0; j < npyC.shape[1]; ++j)
-        {
-            coeffs(i, j) = C[ind];
-            //std::cout << coeffs(i, j) << "\t`";
-            ++ind;
-        }
-        //std::cout << std::endl;
-    }
-
-    std::cout << " --------- done -----------" << std::endl;
-}
-
+ 
 
 void SMPL::init() noexcept(false)
 {
