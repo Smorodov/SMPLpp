@@ -95,14 +95,14 @@ SMPL::SMPL(std::string &modelPath,
         throw smpl_error("SMPL", "Failed to fetch device index!");
     }
 
-    std::filesystem::path path(modelPath);
-    if (std::filesystem::exists(path)) {
+    //std::filesystem::path path(modelPath);
+    //if (std::filesystem::exists(path)) {
         m__modelPath = modelPath;
         m__vertPath = vertPath;
-    }
-    else {
-        throw smpl_error("SMPL", "Failed to initialize model path!");
-    }
+    //}
+    //else {
+    //    throw smpl_error("SMPL", "Failed to initialize model path!");
+    //}
 }
 
 /**SMPL (overload)
@@ -187,13 +187,13 @@ SMPL &SMPL::operator=(const SMPL& smpl) noexcept(false)
         throw smpl_error("SMPL", "Failed to fetch device index!");
     }
 
-    std::filesystem::path path(smpl.m__modelPath);
-    if (std::filesystem::exists(path)) {
+    //std::filesystem::path path(smpl.m__modelPath);
+    //if (std::filesystem::exists(path)) {
         m__modelPath = smpl.m__modelPath;
-    }
-    else {
-        throw smpl_error("SMPL", "Failed to copy model path!");
-    }
+    //}
+    //else {
+    //    throw smpl_error("SMPL", "Failed to copy model path!");
+    //}
 
     try {
         m__vertPath = smpl.m__vertPath;
@@ -304,13 +304,13 @@ void SMPL::setDevice(const torch::Device &device) noexcept(false)
  */
 void SMPL::setModelPath(const std::string &modelPath) noexcept(false)
 {
-    std::filesystem::path path(modelPath);
-    if (std::filesystem::exists(path)) {
+    //std::filesystem::path path(modelPath);
+    //if (std::filesystem::exists(path)) {
         m__modelPath = modelPath;
-    }
-    else {
-        throw smpl_error("SMPL", "Failed to initialize model path!");
-    }
+    //}
+    //else {
+    //    throw smpl_error("SMPL", "Failed to initialize model path!");
+    //}
 
     return;
 }
@@ -493,6 +493,8 @@ torch::Tensor SMPL::getVertex() noexcept(false)
 
 void SMPL::init() noexcept(false)
 {
+    usePosePca = false;
+
     std::cout << "---------------------------"<< std::endl;
     std::cout << "Loding SMPL model file: " << m__modelPath << std::endl;
     std::cout << "---------------------------" << std::endl;
@@ -534,9 +536,21 @@ void SMPL::init() noexcept(false)
 
     cnpy::NpyArray jointRegressor = npz_map["joint_regressor"];
     joint_num = jointRegressor.shape[0];
+    for (int i = 0; i < jointRegressor.shape.size(); ++i)
+    {
+        COUT_VAR(jointRegressor.shape[i]);
+    }
+
     COUT_VAR(joint_num);
     m__jointRegressor = torch::from_blob(jointRegressor.data<double>(),
         { joint_num, vertex_num },torch::kF64).to(m__device);// (24, 6890)   
+    COUT_VAR(m__jointRegressor.sizes());
+
+    
+    //do not change
+  //      m__jointRegressor = torch::reshape(m__jointRegressor, { vertex_num,joint_num });
+   //    m__jointRegressor = torch::transpose(m__jointRegressor, 1, 0);
+
     m__jointRegressor = m__jointRegressor.toType(torch::kF32);
    
     // kinematicTree
@@ -544,19 +558,26 @@ void SMPL::init() noexcept(false)
     face_index_num = faceIndices.shape[0];
    
     int ind = 0;
+    std::cout << "kinematicTree" << std::endl;
+    std::cout << "kinematicTree shape="<< "[" << kinematicTree.shape[0]<< "," << kinematicTree.shape[1]<< "]" << std::endl;
     for (int i = 0; i < kinematicTree.shape[0]; ++i)
-    {
+    {        
         for (int j = 0; j < kinematicTree.shape[1]; ++j)
         {
             kinematicTree.data<int64_t>()[ind] = int(kinematicTree.data<int64_t>()[ind]);
+            std::cout << "kinematicTree["<< ind << "]=" << kinematicTree.data<int64_t>()[ind] << std::endl;
             ind++;
-        }
+        }      
     }
-    
+    std::cout << "-----------------" << std::endl;
 
     m__kinematicTree = torch::from_blob(kinematicTree.data<int64_t>(),
         { 2, joint_num }, torch::kInt64).to(m__device);// (2, 24)  
+    
+    COUT_ARR(m__kinematicTree)
 
+   //m__kinematicTree = torch::reshape(m__kinematicTree, {joint_num,2 });
+   //m__kinematicTree = torch::transpose(m__kinematicTree, 1, 0);
 
     cnpy::NpyArray weights = npz_map["weights"];
     m__weights = torch::from_blob(weights.data<double>(),
@@ -614,8 +635,18 @@ void SMPL::launch(
 
         torch::Tensor shapeBlendShape = m__blender.getShapeBlendShape();
         //COUT_ARR(shapeBlendShape)
-        torch::Tensor poseBlendShape = m__blender.getPoseBlendShape();
-        //COUT_ARR(poseBlendShape)
+        
+        torch::Tensor poseBlendShape;
+        if (usePosePca)
+        {
+            poseBlendShape = m__blender.getPoseBlendShape();
+        }
+        else
+        {
+            // not need pose shape pca for hand
+            poseBlendShape = shapeBlendShape;
+        }
+                                                       //COUT_ARR(poseBlendShape)
         torch::Tensor poseRotation = m__blender.getPoseRotation();
         //COUT_ARR(poseRotation)
         //
@@ -787,49 +818,52 @@ void SMPL::getSkeleton(int64_t index,
     jy.clear();
     jz.clear();
  
-    m__regressor.regress();
-    torch::Tensor joints=m__regressor.getJoint().clone().to(torch::kCPU);// (N, NJoints, 3)
-    torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, torch::kCPU);// (N, NJoints, 1)
+    //m__regressor.regress();
+    torch::Tensor joints=m__regressor.getJoint().clone();// (N, NJoints, 3)
+    COUT_VAR(joints.sizes())
+    torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, m__device);// (N, NJoints, 1)
+    COUT_VAR(ones.sizes())
     torch::Tensor homo = torch::cat({ joints, ones }, 2);// (N, NJoints, 4)
-    torch::Tensor transforms = m__skinner.m__transformation.clone().to(torch::kCPU);// (N, NJoints, 4, 4)
+    COUT_VAR(homo.sizes())
+    torch::Tensor transforms = m__skinner.m__transformation.clone();// (N, NJoints, 4, 4)
+    COUT_VAR(transforms.sizes())
     
-    std::cout << "homo:" << homo << std::endl;
-    torch::Tensor slice_ = TorchEx::indexing(homo, torch::IntList({ index})).to(torch::kCPU);// (joints_num, 3)
-    torch::Tensor tr_slice_ = TorchEx::indexing(transforms, torch::IntList({ index})).to(torch::kCPU);// (4, 4)
+    torch::Tensor slice = TorchEx::indexing(homo, torch::IntList({ index}));// (joints_num, 3)  
+    
+    torch::Tensor tr_slice = TorchEx::indexing(transforms, torch::IntList({ index}));// (4, 4)
+    
+   // tr_slice = torch::transpose(tr_slice, 1, 2);
+   // slice = torch::transpose(slice, 0, 1);
+    slice = torch::unsqueeze(slice,2);
+    
+    COUT_VAR(tr_slice.sizes())
+    COUT_VAR(slice.sizes())
+    torch::Tensor res = torch::matmul(tr_slice, slice);
+    res = res.to(torch::kCPU);
+    COUT_VAR(res.sizes())
+    
+    float* slice_res = (float*)res.data_ptr();// 1, 4 
     if (homo.sizes() == torch::IntArrayRef({ batch_size, joint_num, 4 }))
     {
         for (int64_t i = 0; i < joint_num; i++)
         {
-            torch::Tensor slice1_ = TorchEx::indexing(slice_, torch::IntList({ i })).to(torch::kCPU);// (joints_num, 3)
-            float* slice = (float*)slice1_.to(torch::kCPU).data_ptr();//1, 4));
-
-            torch::Tensor tr_slice1_ = TorchEx::indexing(tr_slice_, torch::IntList({ i })).to(torch::kCPU);// (4, 4)
-            tr_slice1_ = torch::transpose(tr_slice1_, 0, 1);
-            float* tr_slice = (float*)tr_slice1_.to(torch::kCPU).data_ptr();// 4, 4 ;
-            // std::cout << "=====tt_slice1_=====" << std::endl;
-            // std::cout << tr_slice1_ << std::endl;
-            // std::cout << "==========" << std::endl;
-            // std::cout << "=====slice_=====" << std::endl;
-            // std::cout << slice1_ << std::endl;                    
-            // std::cout << "==========" << std::endl;
-            torch::Tensor res = torch::matmul(slice1_, tr_slice1_).to(torch::kCPU);
-            float* slice_res = (float*)res.to(torch::kCPU).data_ptr();// 1, 4 
-            jx.push_back(slice_res[0]);
-            jy.push_back(slice_res[1]);
-            jz.push_back(slice_res[2]);
+            jx.push_back(slice_res[4 * i + 0]);
+            jy.push_back(slice_res[4 * i + 1]);
+            jz.push_back(slice_res[4 * i + 2]);
         }
         
-        torch::Tensor kinematicTree = m__kinematicTree.to(torch::kCPU);
-        //int64_t* kinematicTree = (int64_t*)m__kinematicTree.to(torch::kCPU).data_ptr();//2,joint_num
+        torch::Tensor kinematicTree = m__kinematicTree.to(torch::kCPU);       
         for (int64_t i = 0; i < joint_num; i++)
         {
             l1.push_back( ( (int64_t *)(kinematicTree.data_ptr()))[i]);
             l2.push_back( ( (int64_t*)(kinematicTree.data_ptr()))[i+ joint_num]);
+            std::cout << l1[i] << " <-> " << l2[i] << std::endl;
             //COUT_VAR(l1[i])
             //COUT_VAR(l2[i])
         }
 
         // we deal with hand model 
+        
         if (face_index_num == 1538 && vertex_num == 778)
         {
             torch::Tensor vertices = m__skinner.getVertex().clone().to(torch::kCPU);

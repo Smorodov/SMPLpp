@@ -26,6 +26,8 @@ import os
 import numpy as np
 import pickle as pkl
 
+
+
 def main(args):
     """Main entrance.
 
@@ -38,11 +40,13 @@ def main(args):
     ----------
 
     """
-    raw_model_path = 'SMPLH_male.pkl'
+    #modelName="MANO_left"
+    modelName="SMPLH_female"
+    raw_model_path = modelName+'.pkl'
     save_dir = 'result'
 
 
-    NP_SAVE_FILE = 'male_model.npz'        
+    NP_SAVE_FILE = modelName+'.npz'        
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -76,14 +80,16 @@ def main(args):
     with open(raw_model_path, 'rb') as f:
         raw_model_data = pkl.load(f,encoding='latin1')
         
-    vertices_template = np.array(raw_model_data['v_template'])
-    face_indices = np.array(raw_model_data['f'] + 1)  # starts from 1
-    weights = np.array(raw_model_data['weights'])
-    shape_blend_shapes = np.array(raw_model_data['shapedirs'])
-    pose_blend_shapes = np.array(raw_model_data['posedirs'])
-    joint_regressor = np.array(raw_model_data['J_regressor'].toarray())
-    kinematic_tree = np.array(raw_model_data['kintree_table'])
-
+    vertices_template = np.require(raw_model_data['v_template'],requirements=['C'])
+    face_indices = np.require((raw_model_data['f'] + 1),requirements=['C'])  # starts from 1
+    weights = np.require(raw_model_data['weights'],requirements=['C'])
+    shape_blend_shapes = np.require(raw_model_data['shapedirs'],requirements=['C'])
+    pose_blend_shapes = np.require(raw_model_data['posedirs'],requirements=['C'])
+    joint_regressor = np.require(raw_model_data['J_regressor'].toarray(),requirements=['C'])
+    kinematic_tree = np.require(raw_model_data['kintree_table'],requirements=['C'])
+    
+    print(kinematic_tree.transpose().reshape(1,-1))
+    
     model_data_np = {
         'vertices_template': vertices_template,
         'face_indices': face_indices,

@@ -234,6 +234,7 @@ namespace smpl
         {
             m__transformation = linearBlendSkinning.m__transformation.clone().to(
                 m__device);
+
         }
         else
         {

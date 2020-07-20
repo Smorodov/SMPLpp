@@ -308,7 +308,7 @@ using clk = std::chrono::system_clock;
 
 int main(int argc, char const* argv[])
 {
-	std::string modelPath = "MANO_left.npz";
+	std::string modelPath = "female_model.npz";
 
 	torch::DeviceType device_type;
 
@@ -350,7 +350,7 @@ int main(int argc, char const* argv[])
 
 	beta = 0.3 * torch::rand({ BATCH_SIZE, SHAPE_BASIS_DIM }).to(device);
 
-	float pose_rand_amplitude = 0.05;
+	float pose_rand_amplitude = 1;
 	while (k != 27)
 	{
 		auto end = clk::now();
@@ -428,13 +428,13 @@ int main(int argc, char const* argv[])
 		float ty = 0.35;
 		float tz = 0;
 		float rx = 0;
-		float ry = 45;
+		float ry = 0;
 		float rz = 0;
 
 		ModelView = glm::translate(ModelView, glm::vec3(bg.cols / 2, bg.rows / 2, 0));
 		ModelView = glm::rotate(ModelView, float(rx*CV_PI/180.0), glm::vec3(1, 0, 0));
-		ModelView = glm::rotate(ModelView, float(ry * CV_PI / 180.0), glm::vec3(0, 1, 0));
-		ModelView = glm::rotate(ModelView, float(rz * CV_PI / 180.0), glm::vec3(0, 0, 1));
+		ModelView = glm::rotate(ModelView, float(ry), glm::vec3(0, 1, 0));
+		ModelView = glm::rotate(ModelView, float(rz), glm::vec3(0, 0, 1));
 
 		ModelView = glm::scale(ModelView, glm::vec3(bg.cols / 2*scl, bg.cols / 2 * scl, bg.cols / 2 * scl));
 		

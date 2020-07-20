@@ -35,6 +35,10 @@
 #include "toolbox/TorchEx.hpp"
 #include "smpl/WorldTransformation.h"
 //----------
+#define COUT_VAR(x) std::cout << #x"=" << x << std::endl;
+#define COUT_ARR(x) std::cout << "---------"#x"---------" << std::endl;\
+        std::cout << x << std::endl;\
+        std::cout << "---------"#x"---------" << std::endl;
 
 //===== EXTERNAL FORWARD DECLARATIONS =========================================
 
@@ -612,7 +616,7 @@ torch::Tensor WorldTransformation::globalTransform(
         throw smpl_error("WorldTransformations", 
             "Cannot transform bones globally!");
     }
-
+    COUT_VAR(localTransformations.sizes());
     std::vector<torch::Tensor> transformations;
     transformations.push_back(
         TorchEx::indexing(localTransformations,
@@ -623,19 +627,28 @@ torch::Tensor WorldTransformation::globalTransform(
     );// [0, (N, 4, 4)]
 
     torch::Tensor ancestor;
+    torch::Tensor A;
+    torch::Tensor B;
     torch::Tensor transformation;
     torch::Tensor globalSlice, localSlice;
-    for (int64_t i = 1; i < JOINT_NUM; i++) {
-        ancestor = TorchEx::indexing(m__kineTree, 
-            torch::IntArrayRef({0}), torch::IntArrayRef({i})).toType(torch::kLong);
-        transformation = torch::matmul(
-            transformations[*(ancestor.to(torch::kCPU).data<int64_t>())],
-            TorchEx::indexing(localTransformations,
-                torch::IntList(),
-                torch::IntList({i}),
-                torch::IntList(),
-                torch::IntList())
-        );
+    for (int64_t i = 1; i < JOINT_NUM; i++) 
+    {
+        ancestor = TorchEx::indexing(m__kineTree,torch::IntArrayRef({0}), torch::IntArrayRef({i})).toType(torch::kLong);
+        ancestor = ancestor.to(torch::kCPU);
+        COUT_VAR(ancestor);
+        int ind = ancestor.data<int64_t>()[0];
+        COUT_VAR(ind);
+        A = transformations[ind];
+        COUT_VAR(A.sizes());
+        B = TorchEx::indexing(localTransformations,
+            torch::IntList(),
+            torch::IntList({ i }),
+            torch::IntList(),
+            torch::IntList());
+        COUT_VAR(B.sizes());
+        COUT_VAR(transformations.size());
+        transformation = torch::matmul(A, B);
+
         transformations.push_back(transformation);// [i, (N, 4, 4)]
     }
     torch::Tensor globalTransformations = torch::stack(

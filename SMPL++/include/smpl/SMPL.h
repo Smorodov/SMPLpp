@@ -189,6 +189,7 @@ namespace smpl {
 class SMPL final
 {
 public:
+    bool usePosePca;
 private: // PIRVATE ATTRIBUTES
 
     torch::Device m__device;

@@ -870,7 +870,7 @@ namespace smpl
         // rotation angles and axis
         //
         torch::Tensor angles = torch::norm(theta, 2, { 2 }, true).to(m__device);// (N, 24, 1)
-        torch::Tensor epsilon = (1e-7 * torch::ones({ BATCH_SIZE, JOINT_NUM, 3 })).to(m__device);
+        torch::Tensor epsilon = (1e-7 * torch::ones({ BATCH_SIZE, JOINT_NUM, 1 })).to(m__device);
         angles = angles + epsilon;
         torch::Tensor axes = theta / angles;// (N, 24, 3)
         angles = angles - epsilon;
