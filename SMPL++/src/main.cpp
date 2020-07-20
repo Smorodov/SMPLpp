@@ -309,7 +309,7 @@ using clk = std::chrono::system_clock;
 int main(int argc, char const* argv[])
 {
 	std::string modelPath = "MANO_left.npz";
-
+	SINGLE_SMPL::get()->usePosePca = false;
 	torch::DeviceType device_type;
 
 	if (torch::cuda::is_available())
@@ -350,7 +350,7 @@ int main(int argc, char const* argv[])
 
 	beta = 0.3 * torch::rand({ BATCH_SIZE, SHAPE_BASIS_DIM }).to(device);
 
-	float pose_rand_amplitude = 0.05;
+	float pose_rand_amplitude = 0.5;
 	while (k != 27)
 	{
 		auto end = clk::now();
@@ -367,9 +367,9 @@ int main(int argc, char const* argv[])
 
 		for (int i = 0; i < JOINT_NUM; ++i)
 		{
-			//theta.data<float>()[i*3+0] = 0; // rx
+			theta.data<float>()[i*3+0] = 0; // rx
 			theta.data<float>()[i*3+1] = 0; // ry
-			theta.data<float>()[i*3+2] = 0; // rz
+			//theta.data<float>()[i*3+2] = 0; // rz
 		}
 		theta = theta.to(device);
 		try
@@ -423,12 +423,12 @@ int main(int argc, char const* argv[])
 		glm::mat4 Projection = glm::mat4(1.0f);
 		glm::mat4 ModelView = glm::mat4(1.0f);
 
-		float scl = 1;
+		float scl = 5;
 		float tx = 0;
-		float ty = 0.35;
+		float ty = 0;
 		float tz = 0;
-		float rx = 0;
-		float ry = 45;
+		float rx = 45;
+		float ry = 0;
 		float rz = 0;
 
 		ModelView = glm::translate(ModelView, glm::vec3(bg.cols / 2, bg.rows / 2, 0));
