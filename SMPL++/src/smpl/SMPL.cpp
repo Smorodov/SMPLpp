@@ -506,16 +506,13 @@ void SMPL::init() noexcept(false)
     COUT_VAR(face_index_num);
 
     m__faceIndices = torch::from_blob(faceIndices.data<int>(),{ FACE_INDEX_NUM, 3 }, torch::kInt32).clone().to(m__device);
-    std::cout << "test 1" << std::endl;
     //m__faceIndices = m__faceIndices.toType(torch::kInt64);
-    std::cout << "test 2" << std::endl;
-
     // mean mesh
     cnpy::NpyArray templateRestShape = npz_map["vertices_template"];
     vertex_num = templateRestShape.shape[0];
-    m__templateRestShape = torch::from_blob(templateRestShape.data<double>(),{ vertex_num, 3 }, torch::kF64).to(m__device);// (6890, 3)   
+    m__templateRestShape = torch::from_blob(templateRestShape.data<float>(),{ vertex_num, 3 }, torch::kF32).to(m__device);// (6890, 3)   
     COUT_VAR(vertex_num);
-    m__templateRestShape=m__templateRestShape.toType(torch::kF32);
+    //m__templateRestShape=m__templateRestShape.toType(torch::kF32);
    
     // blender
     cnpy::NpyArray shapeBlendBasis = npz_map["shape_blend_shapes"];   
@@ -527,12 +524,12 @@ void SMPL::init() noexcept(false)
     pose_basis_dim = poseBlendBasis.shape[2];
     COUT_VAR(pose_basis_dim);
 
-    m__shapeBlendBasis = torch::from_blob(shapeBlendBasis.data<double>(),
-        { vertex_num, 3, shape_basis_dim }, torch::kF64).to(m__device);// (6890, 3, 10)
-    m__shapeBlendBasis = m__shapeBlendBasis.toType(torch::kF32);
-    m__poseBlendBasis = torch::from_blob(poseBlendBasis.data<double>(),
-        { vertex_num, 3, pose_basis_dim }, torch::kF64).to(m__device);// (6890, 3, 207)
-    m__poseBlendBasis = m__poseBlendBasis.toType(torch::kF32);
+    m__shapeBlendBasis = torch::from_blob(shapeBlendBasis.data<float>(),
+        { vertex_num, 3, shape_basis_dim }, torch::kF32).to(m__device);// (6890, 3, 10)
+    //m__shapeBlendBasis = m__shapeBlendBasis.toType(torch::kF32);
+    m__poseBlendBasis = torch::from_blob(poseBlendBasis.data<float>(),
+        { vertex_num, 3, pose_basis_dim }, torch::kF32).to(m__device);// (6890, 3, 207)
+    //m__poseBlendBasis = m__poseBlendBasis.toType(torch::kF32);
 
     cnpy::NpyArray jointRegressor = npz_map["joint_regressor"];
     joint_num = jointRegressor.shape[0];
@@ -542,8 +539,8 @@ void SMPL::init() noexcept(false)
     }
 
     COUT_VAR(joint_num);
-    m__jointRegressor = torch::from_blob(jointRegressor.data<double>(),
-        { joint_num, vertex_num },torch::kF64).to(m__device);// (24, 6890)   
+    m__jointRegressor = torch::from_blob(jointRegressor.data<float>(),
+        { joint_num, vertex_num },torch::kF32).to(m__device);// (24, 6890)   
     COUT_VAR(m__jointRegressor.sizes());
 
     
@@ -551,7 +548,7 @@ void SMPL::init() noexcept(false)
   //      m__jointRegressor = torch::reshape(m__jointRegressor, { vertex_num,joint_num });
    //    m__jointRegressor = torch::transpose(m__jointRegressor, 1, 0);
 
-    m__jointRegressor = m__jointRegressor.toType(torch::kF32);
+   // m__jointRegressor = m__jointRegressor.toType(torch::kF32);
    
     // kinematicTree
     cnpy::NpyArray kinematicTree = npz_map["kinematic_tree"];
@@ -560,29 +557,20 @@ void SMPL::init() noexcept(false)
     int ind = 0;
     std::cout << "kinematicTree" << std::endl;
     std::cout << "kinematicTree shape="<< "[" << kinematicTree.shape[0]<< "," << kinematicTree.shape[1]<< "]" << std::endl;
-    for (int i = 0; i < kinematicTree.shape[0]; ++i)
-    {        
-        for (int j = 0; j < kinematicTree.shape[1]; ++j)
-        {
-            kinematicTree.data<int64_t>()[ind] = int(kinematicTree.data<int64_t>()[ind]);
-            std::cout << "kinematicTree["<< ind << "]=" << kinematicTree.data<int64_t>()[ind] << std::endl;
-            ind++;
-        }      
-    }
     std::cout << "-----------------" << std::endl;
 
-    m__kinematicTree = torch::from_blob(kinematicTree.data<int64_t>(),
-        { 2, joint_num }, torch::kInt64).to(m__device);// (2, 24)  
-    
+    m__kinematicTree = torch::from_blob(kinematicTree.data<int32_t>(),
+        { 2, joint_num }, torch::kInt32).to(m__device);// (2, 24)  
+    m__kinematicTree= m__kinematicTree.toType(torch::kInt64);
     COUT_ARR(m__kinematicTree)
 
    //m__kinematicTree = torch::reshape(m__kinematicTree, {joint_num,2 });
    //m__kinematicTree = torch::transpose(m__kinematicTree, 1, 0);
 
     cnpy::NpyArray weights = npz_map["weights"];
-    m__weights = torch::from_blob(weights.data<double>(),
-        { vertex_num, joint_num }, torch::kF64).to(m__device);// (24, 6890)   
-    m__weights = m__weights.toType(torch::kF32);
+    m__weights = torch::from_blob(weights.data<float>(),
+        { vertex_num, joint_num }, torch::kF32).to(m__device);// (24, 6890)   
+    //m__weights = m__weights.toType(torch::kF32);
 
         std::cout << "---------------------------" << std::endl;
         std::cout << " Successfully loaded " << std::endl;
@@ -820,13 +808,13 @@ void SMPL::getSkeleton(int64_t index,
  
     //m__regressor.regress();
     torch::Tensor joints=m__regressor.getJoint().clone();// (N, NJoints, 3)
-    COUT_VAR(joints.sizes())
+    //COUT_VAR(joints.sizes())
     torch::Tensor ones = torch::ones({ BATCH_SIZE, JOINT_NUM, 1 }, m__device);// (N, NJoints, 1)
-    COUT_VAR(ones.sizes())
+    //COUT_VAR(ones.sizes())
     torch::Tensor homo = torch::cat({ joints, ones }, 2);// (N, NJoints, 4)
-    COUT_VAR(homo.sizes())
+   //COUT_VAR(homo.sizes())
     torch::Tensor transforms = m__skinner.m__transformation.clone();// (N, NJoints, 4, 4)
-    COUT_VAR(transforms.sizes())
+    //COUT_VAR(transforms.sizes())
     
     torch::Tensor slice = TorchEx::indexing(homo, torch::IntList({ index}));// (joints_num, 3)  
     
@@ -836,11 +824,11 @@ void SMPL::getSkeleton(int64_t index,
    // slice = torch::transpose(slice, 0, 1);
     slice = torch::unsqueeze(slice,2);
     
-    COUT_VAR(tr_slice.sizes())
-    COUT_VAR(slice.sizes())
+    //COUT_VAR(tr_slice.sizes())
+    //COUT_VAR(slice.sizes())
     torch::Tensor res = torch::matmul(tr_slice, slice);
     res = res.to(torch::kCPU);
-    COUT_VAR(res.sizes())
+    //COUT_VAR(res.sizes())
     
     float* slice_res = (float*)res.data_ptr();// 1, 4 
     if (homo.sizes() == torch::IntArrayRef({ batch_size, joint_num, 4 }))

@@ -40,8 +40,8 @@ def main(args):
     ----------
 
     """
-    #modelName="MANO_left"
-    modelName="SMPLH_female"
+    modelName="MANO_left"
+    #modelName="SMPLH_female"
     raw_model_path = modelName+'.pkl'
     save_dir = 'result'
 
@@ -80,15 +80,15 @@ def main(args):
     with open(raw_model_path, 'rb') as f:
         raw_model_data = pkl.load(f,encoding='latin1')
         
-    vertices_template = np.require(raw_model_data['v_template'],requirements=['C'])
-    face_indices = np.require((raw_model_data['f'] + 1),requirements=['C'])  # starts from 1
-    weights = np.require(raw_model_data['weights'],requirements=['C'])
-    shape_blend_shapes = np.require(raw_model_data['shapedirs'],requirements=['C'])
-    pose_blend_shapes = np.require(raw_model_data['posedirs'],requirements=['C'])
-    joint_regressor = np.require(raw_model_data['J_regressor'].toarray(),requirements=['C'])
-    kinematic_tree = np.require(raw_model_data['kintree_table'],requirements=['C'])
+    vertices_template = np.require(raw_model_data['v_template'],dtype=np.float32,requirements=['C'])
+    face_indices = np.require((raw_model_data['f'] + 1),dtype=np.int32,requirements=['C'])  # starts from 1
+    weights = np.require(raw_model_data['weights'],dtype=np.float32,requirements=['C'])
+    shape_blend_shapes = np.require(raw_model_data['shapedirs'],dtype=np.float32,requirements=['C'])
+    pose_blend_shapes = np.require(raw_model_data['posedirs'],dtype=np.float32,requirements=['C'])
+    joint_regressor = np.require(raw_model_data['J_regressor'].toarray(),dtype=np.float32,requirements=['C'])
+    kinematic_tree = np.require(raw_model_data['kintree_table'],dtype=np.int32,requirements=['C'])
     
-    print(kinematic_tree.transpose().reshape(1,-1))
+    print(kinematic_tree)
     
     model_data_np = {
         'vertices_template': vertices_template,
